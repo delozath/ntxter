@@ -1,5 +1,8 @@
 import pandas as pd
 
+def median_iqr_report(x, decimals):
+    return f"{x.median():.{decimals}f} ({x.quantile(0.25):.{decimals}f} -- {x.quantile(0.75):.{decimals}f})"
+
 class MetricsTableDriver:
     def __init__(self, cols):
         self.cols = cols
