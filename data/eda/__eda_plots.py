@@ -32,5 +32,14 @@ def pairplot(df, **params):
     #
     g.figure.subplots_adjust(bottom=0.1, top=0.95, left=0.05, right=0.95, hspace=0.1, wspace=0.1)
     g.figure.tight_layout(rect=[0, 0, 1, 1])
-
-    
+#
+#
+def corr_heatmaps(df):
+    for m in ['pearson', 'spearman', 'kendall']:
+        plt.figure(figsize=(12, 12))
+        corr = df.corr(method=m)
+        sns.heatmap(corr, annot=True, fmt=".2f", cmap='PRGn', vmax=1, vmin=-1)
+        plt.title(f'{m.title()} Correlation')
+        plt.tight_layout()
+    #
+    plt.show()
