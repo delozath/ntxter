@@ -1,5 +1,6 @@
-from ntxter.mlops.partitioning.__kfold import StratifiedKFoldWrapper
+from ntxter.mlops.partitioning.__kfold import StratifiedKFoldWrapper, QuantileStratifiedKFold
 
 __all__ = [
-    'StratifiedKFoldWrapper'
+    'StratifiedKFoldWrapper',
+    'QuantileStratifiedKFold'
 ]
