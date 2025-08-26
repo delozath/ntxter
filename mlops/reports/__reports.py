@@ -19,6 +19,7 @@ class MetricsTableDriver:
     #
     def append(self):
         self._table.append(self._row)
+        self._row = None
     #
     def generate(self):
         return pd.DataFrame(self._table)
