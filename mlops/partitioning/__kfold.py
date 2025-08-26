@@ -8,8 +8,13 @@ from sklearn.model_selection._split import BaseCrossValidator
 from sklearn.utils.validation import check_array
 from sklearn.utils import check_random_state
 
-class _AbstractStratified:
+class _StratifiedKFold:
     def _X_y_validation(self, X, y):
+        X = check_array(X, dtype=float)
+        y = self._y_validation(X, y)
+        return X, y
+    #
+    def _y_validation(self, X, y):
         n_samples, _ = X.shape
         if y is None:
             raise ValueError(f"y parameter is required for {self.__class__.__name__}")
@@ -17,8 +22,12 @@ class _AbstractStratified:
         y = check_array(y, ensure_2d=False, dtype=float)
         if len(y) != n_samples:
             raise ValueError("X and y must have the same lengths")
-
-class StratifiedKFoldWrapper(StratifiedKFold, _AbstractStratified):
+        #
+        return y
+        
+#
+#
+class StratifiedKFoldWrapper(StratifiedKFold, _StratifiedKFold):
     X_train   = ArrayIndexSlice()
     y_train   = ArrayIndexSlice()
     X_test    = ArrayIndexSlice()
@@ -35,10 +44,7 @@ class StratifiedKFoldWrapper(StratifiedKFold, _AbstractStratified):
         random_state: Union[int, None] = None
      ):
         super().__init__(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
-        self.X = X
-        self.y = y
-        #
-        self._X_y_validation(X, y)
+        self.X, self.y = self._X_y_validation(X, y)
     #
     def split(self, groups=None):
         for tn_idx, tt_idx in super().split(self.X, self.y, groups):
@@ -46,10 +52,11 @@ class StratifiedKFoldWrapper(StratifiedKFold, _AbstractStratified):
             self.y_train = self.y, tn_idx
             self.X_test  = self.X, tt_idx
             self.y_test  = self.y, tt_idx
+            #
             yield
 #
 #
-class QuantileStratifiedKFold(BaseCrossValidator, _AbstractStratified):
+class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
     def __init__(
         self,
         n_splits: int = 5,
@@ -79,7 +86,9 @@ class QuantileStratifiedKFold(BaseCrossValidator, _AbstractStratified):
         y: np.ndarray,
         groups: None = None,
     ) -> Iterator[Tuple[np.ndarray, np.ndarray]]:
-        self._check_parameters(X, y)
+        self._X_y_validation(X, y)
+        
+        breakpoint()
         #    Debe generar pares (train_idx, test_idx) como arrays de enteros.
         
             # TODO: validar entradas (longitud de X, consistencia con y y groups)
@@ -88,7 +97,11 @@ class QuantileStratifiedKFold(BaseCrossValidator, _AbstractStratified):
             # TODO: barajar si shuffle=True usando check_random_state
             # TODO: yield train_idx, test_idx en cada partición
         #
-
+    #
+    def _quantiles(self, y):
+        qn = np.linspace(0, 1, num=self.n_bins + 1)
+        splits = np.quantile(y, qn)
+    #
     def tmp(self):
         # Build quantile edges; guarantee strictly increasing edges.
         # We handle duplicates by nudging edges minimally.
