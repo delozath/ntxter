@@ -17,7 +17,7 @@ class MetricsTableDriver:
     def row(self, value):
         self._row = self._row | value if self._row else value
     #
-    def append(self):
+    def append(self): 
         self._table.append(self._row)
         self._row = None
     #
