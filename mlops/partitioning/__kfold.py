@@ -8,7 +8,7 @@ from sklearn.model_selection._split import BaseCrossValidator
 from sklearn.utils.validation import check_array
 from sklearn.utils import check_random_state
 
-class _StratifiedKFold:
+class _StratifiedKFold(BaseCrossValidator):
     EPS = 1E-4
     def _X_y_validation(self, X, y):
         X = check_array(X, dtype=float)
@@ -25,6 +25,16 @@ class _StratifiedKFold:
             raise ValueError("X and y must have the same lengths")
         #
         return y
+    #
+    def split(self, X, y, groups=None):
+        for tn_idx, tt_idx in super().split(X, y, groups):
+            self.X_train = X, tn_idx
+            self.y_train = y, tn_idx
+            self.X_test  = X, tt_idx
+            self.y_test  = y, tt_idx
+            #
+            breakpoint()
+            yield
         
 #
 #
@@ -33,32 +43,28 @@ class StratifiedKFoldWrapper(StratifiedKFold, _StratifiedKFold):
     y_train   = ArrayIndexSlice()
     X_test    = ArrayIndexSlice()
     y_test    = ArrayIndexSlice()
-    #X_unseen  = ArrayIndexSlice()
-    #y_unseen  = ArrayIndexSlice()
     #
     def __init__(
         self,
-        X: np.ndarray, 
-        y: np.ndarray,
         n_splits: int = 5,
         shuffle: bool = True,
         random_state: Union[int, None] = None
      ):
-        super().__init__(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
-        self.X, self.y = self._X_y_validation(X, y)
+        super(StratifiedKFold, self).__init__(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+        
     #
     def split(self, X, y, groups=None):
-        for tn_idx, tt_idx in super().split(self.X, self.y, groups):
-            self.X_train = self.X, tn_idx
-            self.y_train = self.y, tn_idx
-            self.X_test  = self.X, tt_idx
-            self.y_test  = self.y, tt_idx
-            #
-            yield
+        X, y = self._X_y_validation(X, y)
+        return super(_StratifiedKFold, self).split(X, y, groups)
+
 #
 #
-#TODO: incorporate StratifiedGroupKFold
-class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
+class QuantileStratifiedKFold(_StratifiedKFold):
+    X_train   = ArrayIndexSlice()
+    y_train   = ArrayIndexSlice()
+    X_test    = ArrayIndexSlice()
+    y_test    = ArrayIndexSlice()
+    #
     def __init__(
         self,
         n_splits: int = 5,
@@ -83,8 +89,7 @@ class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
         self.k_outlier = k_outlier
     #
     def get_n_splits(self, X=None, y=None, groups=None) -> int:
-        # TODO: devolver el número de particiones, o calcularlo dinámicamente si aplica
-        pass
+        return self.n_splits
     #
     def _iter_test_masks(
         self,
@@ -95,25 +100,26 @@ class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
         X, y = self._X_y_validation(X, y)
         shape = X.shape[0]
         index = np.arange(shape).astype(int)
-        groups, mask_outliers =self._quantiles(y) #always overwrite groups
+        groups, mask_outliers = self._quantiles(y) #always overwrite groups
         #
-        breakpoint()
-        #
-        tn_idx, tt_idx = np.array([], dtype=int), np.array([], dtype=int)
-        for grp in np.unique(groups):
-            grp_idx = index[grp == groups]
+        for _ in range(self.n_splits):
+            mask = np.zeros_like(y).astype(bool)
+            tt_idx = np.array([], dtype=int)
+            for grp in np.unique(groups):
+                grp_idx = index[grp == groups]
+                #
+                n_grp_idx =  grp_idx.shape[0]
+                n_tt = np.ceil(n_grp_idx / self.n_splits).astype(int)
+                if n_tt < 2:
+                    raise ValueError("Too many splits. Balance the trade-off between them and the number of bins")
+                #
+                np.random.shuffle(grp_idx)
+                tt_idx = np.concatenate((tt_idx, grp_idx[-n_tt:]))
             #
-            n_grp_idx =  grp_idx.shape[0]
-            n_tt = np.ceil(n_grp_idx / self.n_splits).astype(int)
-            if n_tt < 2:
-                raise ValueError("Too many splits. Balance the trade-off between them and the number of bins")
+            mask[tt_idx] = True 
+            mask &= mask_outliers
             #
-            np.random.shuffle(grp_idx)
-            #
-            tn_idx = np.concatenate((tn_idx, grp_idx[:-n_tt]))
-            tt_idx = np.concatenate((tt_idx, grp_idx[-n_tt:]))
-        #
-        return tn_idx, tt_idx
+            yield mask
     #
     def _quantiles(self, y):
         qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
@@ -131,16 +137,3 @@ class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
             mask_outliers = np.ones_like(y).astype(bool)
         #
         return group, mask_outliers
-    #
-    def tmp(self):
-        # Build quantile edges; guarantee strictly increasing edges.
-        # We handle duplicates by nudging edges minimally.
-        qs = np.linspace(0, 1, num=self.n_bins + 1)
-        edges = np.quantile(y, qs)
-
-        # Optional clipping of extreme outliers to the interior quantiles
-        if self.clip_outliers:
-            qmin, qmax = edges[1], edges[-2]  # ignore absolute extremes
-            y_clipped = np.clip(y, qmin, qmax)
-        else:
-            y_clipped = y
