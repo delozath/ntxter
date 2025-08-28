@@ -90,33 +90,32 @@ class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
         self,
         X: np.ndarray,
         y: np.ndarray,
-        groups: None = None,
+        groups = None,
     ) -> Iterator[Tuple[np.ndarray, np.ndarray]]:
         X, y = self._X_y_validation(X, y)
-        group, mask_outliers =self._quantiles(y)
+        shape = X.shape[0]
+        index = np.arange(shape).astype(int)
+        groups, mask_outliers =self._quantiles(y) #always overwrite groups
         #
         if mask_outliers is not None:
-            X = X[mask_outliers]
-            y = y[mask_outliers]
-            group = group[mask_outliers]
+            index = index[mask_outliers]
+            groups = groups[mask_outliers]
         #
-        for _ in range(self.n_splits):
-            tn_idx, tt_idx = np.array([]), np.array([])
-            for grp in np.unique(group):
-                X_ = X[group == grp]
-                #
-                x_shp =  X_.shape[0]
-                n_tt = np.ceil(x_shp / self.n_splits).astype(int)
-                if n_tt < 2:
-                    raise ValueError("Too many splits. Balance the trade-off between them and the number of bins")
-                #
-                idx = np.arange(x_shp)
-                np.random.shuffle(idx)
-                #
-                tn_idx = np.concatenate((tn_idx, idx[:-n_tt]))
-                tt_idx = np.concatenate((tt_idx, idx[-n_tt:]))
+        tn_idx, tt_idx = np.array([], dtype=int), np.array([], dtype=int)
+        for grp in np.unique(groups):
+            grp_idx = index[grp == groups]
             #
-            yield tn_idx, tt_idx
+            n_grp_idx =  grp_idx.shape[0]
+            n_tt = np.ceil(n_grp_idx / self.n_splits).astype(int)
+            if n_tt < 2:
+                raise ValueError("Too many splits. Balance the trade-off between them and the number of bins")
+            #
+            np.random.shuffle(grp_idx)
+            #
+            tn_idx = np.concatenate((tn_idx, grp_idx[:-n_tt]))
+            tt_idx = np.concatenate((tt_idx, grp_idx[-n_tt:]))
+        #
+        return tn_idx, tt_idx
     #
     def _quantiles(self, y):
         qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
