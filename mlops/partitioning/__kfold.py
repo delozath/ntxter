@@ -97,9 +97,7 @@ class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
         index = np.arange(shape).astype(int)
         groups, mask_outliers =self._quantiles(y) #always overwrite groups
         #
-        if mask_outliers is not None:
-            index = index[mask_outliers]
-            groups = groups[mask_outliers]
+        breakpoint()
         #
         tn_idx, tt_idx = np.array([], dtype=int), np.array([], dtype=int)
         for grp in np.unique(groups):
@@ -130,7 +128,7 @@ class QuantileStratifiedKFold(BaseCrossValidator, _StratifiedKFold):
             outliers = (self.k_outlier * irq) * [-1, 1] + qn #Tukey rule
             mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
         else:
-            mask_outliers = None
+            mask_outliers = np.ones_like(y).astype(bool)
         #
         return group, mask_outliers
     #
