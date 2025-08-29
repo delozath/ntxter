@@ -2,10 +2,22 @@
 import pandas as pd
 import numpy as np
 
-def corr_analysis(df, method='pearson'):
+def corr_analysis(df, method='pearson', threa=None):
     corr = df.select_dtypes(include='number').corr(method=method)
-    breakpoint()
-
+    if isinstance(threa, float):
+        corr[corr.abs() < threa] = np.nan
+    elif threa is not None:
+        raise ValueError(f"threa parameter must be int or None. {type(threa)} were passed instead")
+    #
+    cols = corr.columns[(corr.notnull().sum() > 1)].to_list()
+    for col in cols:
+        corr_ = corr[col].dropna()\
+                         .drop(index=[col])\
+                         .sort_values(ascending=False)
+        #
+        yield col, corr_
+#
+#
 class DataFrameProfiler:
     def __init__(self, df, cat_thresh=10):
         self.df = df

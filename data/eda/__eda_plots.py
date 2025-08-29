@@ -1,5 +1,6 @@
 import seaborn as sns
 from matplotlib import pyplot as plt
+from numpy import nan
 
 def pairplot(df, **params):
     if not params:
@@ -35,12 +36,24 @@ def pairplot(df, **params):
 #
 #
 def corr_heatmaps(df, threa=None):
+    params = {
+        'annot': True, 
+        'fmt': ".2f", 
+        'cmap': 'PRGn', 
+        'vmax': 1, 
+        'vmin': -1, 
+        'linewidths': 0.01, 
+        'linecolor': 'white'
+    }
     for m in ['pearson', 'spearman', 'kendall']:
         plt.figure(figsize=(12, 12))
         corr = df.select_dtypes(include='number').corr(method=m)
         if isinstance(threa, float):
-            breakpoint()
-        sns.heatmap(corr, annot=True, fmt=".2f", cmap='PRGn', vmax=1, vmin=-1)
+            corr[corr.abs() < threa] = nan
+            params['linecolor'] = 'black'
+        elif threa is not None:
+            raise ValueError(f"threa parameter must be int or None. {type(threa)} were passed instead")
+        sns.heatmap(corr, **params)
         plt.title(f'{m.title()} Correlation')
         plt.tight_layout()
     #
