@@ -1,5 +1,7 @@
 import numpy as np
 
+from abc import ABC, abstractmethod
+
 from sklearn.model_selection import StratifiedKFold
 from ntxter.validation import ArrayIndexSlice, UnpackDataAndCols
 
@@ -8,8 +10,16 @@ from sklearn.model_selection._split import BaseCrossValidator
 from sklearn.utils.validation import check_array
 from sklearn.utils import check_random_state
 
-class _StratifiedKFold(BaseCrossValidator):
+class _StratifiedKFold(BaseCrossValidator, ABC):
     EPS = 1E-4
+    X_train   = ArrayIndexSlice()
+    y_train   = ArrayIndexSlice()
+    X_test    = ArrayIndexSlice()
+    y_test    = ArrayIndexSlice()
+    #
+    def __init__(self, n_splits):
+        self.n_splits = n_splits
+    #
     def _X_y_validation(self, X, y):
         X = check_array(X, dtype=float)
         y = self._y_validation(X, y)
@@ -26,37 +36,36 @@ class _StratifiedKFold(BaseCrossValidator):
         #
         return y
     #
+    @abstractmethod
     def split(self, X, y, groups=None):
-        for tn_idx, tt_idx in super().split(X, y, groups):
-            self.X_train = X, tn_idx
-            self.y_train = y, tn_idx
-            self.X_test  = X, tt_idx
-            self.y_test  = y, tt_idx
-            #
-            breakpoint()
-            yield
-        
-#
-#
-class StratifiedKFoldWrapper(StratifiedKFold, _StratifiedKFold):
-    X_train   = ArrayIndexSlice()
-    y_train   = ArrayIndexSlice()
-    X_test    = ArrayIndexSlice()
-    y_test    = ArrayIndexSlice()
+        pass
     #
+    def _wrap_assignment(self, X, y, tn_idx, tt_idx):
+        self.X_train = X, tn_idx
+        self.y_train = y, tn_idx
+        self.X_test  = X, tt_idx
+        self.y_test  = y, tt_idx
+#
+#
+class StratifiedKFoldWrapper(_StratifiedKFold):
     def __init__(
         self,
         n_splits: int = 5,
         shuffle: bool = True,
         random_state: Union[int, None] = None
      ):
-        super(StratifiedKFold, self).__init__(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
-        
+        super().__init__(n_splits)
+        self.skf = StratifiedKFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
+    #
+    def get_n_splits(self, X=None, y=None, groups=None) -> int:
+        return self.n_splits
     #
     def split(self, X, y, groups=None):
         X, y = self._X_y_validation(X, y)
-        return super(_StratifiedKFold, self).split(X, y, groups)
-
+        for tn_idx, tt_idx in self.skf.split(X, y, groups):
+            self._wrap_assignment(X, y, tn_idx, tt_idx)
+            #
+            yield tn_idx, tt_idx
 #
 #
 class QuantileStratifiedKFold(_StratifiedKFold):
@@ -90,6 +99,15 @@ class QuantileStratifiedKFold(_StratifiedKFold):
     #
     def get_n_splits(self, X=None, y=None, groups=None) -> int:
         return self.n_splits
+    #
+    def split(self, X, y, groups=None):
+        for tn_idx, tt_idx in super().split(X, y, groups):
+            self.X_train = X, tn_idx
+            self.y_train = y, tn_idx
+            self.X_test  = X, tt_idx
+            self.y_test  = y, tt_idx
+            #
+            yield tn_idx, tt_idx
     #
     def _iter_test_masks(
         self,
