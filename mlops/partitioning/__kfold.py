@@ -1,16 +1,13 @@
 import numpy as np
 
-from abc import ABC, abstractmethod
-
 from sklearn.model_selection import StratifiedKFold
-from ntxter.validation import ArrayIndexSlice, UnpackDataAndCols
+from ntxter.validation import ArrayIndexSlice
 
 from typing import Iterator, Union, Tuple
 from sklearn.model_selection._split import BaseCrossValidator
 from sklearn.utils.validation import check_array
-from sklearn.utils import check_random_state
 
-class _StratifiedKFold(BaseCrossValidator, ABC):
+class _StratifiedKFold(BaseCrossValidator):
     EPS = 1E-4
     X_train   = ArrayIndexSlice()
     y_train   = ArrayIndexSlice()
@@ -35,10 +32,6 @@ class _StratifiedKFold(BaseCrossValidator, ABC):
             raise ValueError("X and y must have the same lengths")
         #
         return y
-    #
-    @abstractmethod
-    def split(self, X, y, groups=None):
-        pass
     #
     def _wrap_assignment(self, X, y, tn_idx, tt_idx):
         self.X_train = X, tn_idx
@@ -69,11 +62,6 @@ class StratifiedKFoldWrapper(_StratifiedKFold):
 #
 #
 class QuantileStratifiedKFold(_StratifiedKFold):
-    X_train   = ArrayIndexSlice()
-    y_train   = ArrayIndexSlice()
-    X_test    = ArrayIndexSlice()
-    y_test    = ArrayIndexSlice()
-    #
     def __init__(
         self,
         n_splits: int = 5,
@@ -90,7 +78,7 @@ class QuantileStratifiedKFold(_StratifiedKFold):
         if n_bins > n_splits:
             raise ValueError("Number of bins must be lower than number of splits")
         #
-        self.n_splits = n_splits
+        super().__init__(n_splits)
         self.n_bins = n_bins
         self.shuffle = shuffle
         self.random_state = random_state
@@ -102,10 +90,7 @@ class QuantileStratifiedKFold(_StratifiedKFold):
     #
     def split(self, X, y, groups=None):
         for tn_idx, tt_idx in super().split(X, y, groups):
-            self.X_train = X, tn_idx
-            self.y_train = y, tn_idx
-            self.X_test  = X, tt_idx
-            self.y_test  = y, tt_idx
+            self._wrap_assignment(X, y, tn_idx, tt_idx)
             #
             yield tn_idx, tt_idx
     #
