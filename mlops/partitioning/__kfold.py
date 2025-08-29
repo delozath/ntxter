@@ -53,7 +53,7 @@ class StratifiedKFoldWrapper(_StratifiedKFold):
     def get_n_splits(self, X=None, y=None, groups=None) -> int:
         return self.n_splits
     #
-    def split(self, X, y, groups=None):
+    def split(self, X, y=None, groups=None):
         X, y = self._X_y_validation(X, y)
         for tn_idx, tt_idx in self.skf.split(X, y, groups):
             self._wrap_assignment(X, y, tn_idx, tt_idx)
@@ -88,7 +88,7 @@ class QuantileStratifiedKFold(_StratifiedKFold):
     def get_n_splits(self, X=None, y=None, groups=None) -> int:
         return self.n_splits
     #
-    def split(self, X, y, groups=None):
+    def split(self, X, y=None, groups=None):
         for tn_idx, tt_idx in super().split(X, y, groups):
             self._wrap_assignment(X, y, tn_idx, tt_idx)
             #
