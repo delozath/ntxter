@@ -1,5 +1,9 @@
+
 import pandas as pd
 import numpy as np
+
+def corr_analysis(df, method='pearson'):
+    breakpoint()
 
 class DataFrameProfiler:
     def __init__(self, df, cat_thresh=10):
