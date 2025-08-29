@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 
 def corr_analysis(df, method='pearson'):
+    corr = df.select_dtypes(include='number').corr(method=method)
     breakpoint()
 
 class DataFrameProfiler:

@@ -34,10 +34,12 @@ def pairplot(df, **params):
     g.figure.tight_layout(rect=[0, 0, 1, 1])
 #
 #
-def corr_heatmaps(df):
+def corr_heatmaps(df, threa=None):
     for m in ['pearson', 'spearman', 'kendall']:
         plt.figure(figsize=(12, 12))
-        corr = df.corr(method=m)
+        corr = df.select_dtypes(include='number').corr(method=m)
+        if isinstance(threa, float):
+            breakpoint()
         sns.heatmap(corr, annot=True, fmt=".2f", cmap='PRGn', vmax=1, vmin=-1)
         plt.title(f'{m.title()} Correlation')
         plt.tight_layout()
