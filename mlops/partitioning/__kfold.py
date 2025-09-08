@@ -1,6 +1,7 @@
 import numpy as np
 
-from sklearn.model_selection import StratifiedKFold
+from collections import namedtuple
+
 from ntxter.validation import ArrayIndexSlice
 
 from typing import Iterator, Union, Tuple
@@ -33,33 +34,22 @@ class _StratifiedKFold(BaseCrossValidator):
         #
         return y
     #
-    def _wrap_assignment(self, X, y, tn_idx, tt_idx):
-        self.X_train = X, tn_idx
-        self.y_train = y, tn_idx
-        self.X_test  = X, tt_idx
-        self.y_test  = y, tt_idx
-#
-#
-class StratifiedKFoldWrapper(_StratifiedKFold):
-    def __init__(
-        self,
-        n_splits: int = 5,
-        shuffle: bool = True,
-        random_state: Union[int, None] = None
-     ):
-        super().__init__(n_splits)
-        self.skf = StratifiedKFold(n_splits=n_splits, shuffle=shuffle, random_state=random_state)
-    #
-    def get_n_splits(self, X=None, y=None, groups=None) -> int:
-        return self.n_splits
-    #
-    def split(self, X, y=None, groups=None):
-        X, y = self._X_y_validation(X, y)
-        for tn_idx, tt_idx in self.skf.split(X, y, groups):
-            self._wrap_assignment(X, y, tn_idx, tt_idx)
-            #
-            yield tn_idx, tt_idx
-#
+    def _quantiles(self, y):
+        qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
+        irq = np.diff(qn)
+        #
+        percentiles = np.linspace(0, 1, self.n_bins + 1)
+        percentiles = np.quantile(y, percentiles)
+        percentiles[0] -= _StratifiedKFold.EPS
+        group = np.searchsorted(percentiles, y)
+
+        if self.clip_outliers=='tukey':
+            outliers = (self.k_outlier * irq) * [-1, 1] + qn #Tukey rule
+            mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
+        else:
+            mask_outliers = np.ones_like(y).astype(bool)
+        #
+        return group, mask_outliers
 #
 class QuantileStratifiedKFold(_StratifiedKFold):
     def __init__(
@@ -92,8 +82,6 @@ class QuantileStratifiedKFold(_StratifiedKFold):
     #
     def split(self, X, y=None, groups=None):
         for tn_idx, tt_idx in super().split(X, y, groups):
-            self._wrap_assignment(X, y, tn_idx, tt_idx)
-            #
             yield tn_idx, tt_idx
     #
     def _iter_test_masks(
@@ -125,20 +113,3 @@ class QuantileStratifiedKFold(_StratifiedKFold):
             mask &= mask_outliers
             #
             yield mask
-    #
-    def _quantiles(self, y):
-        qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
-        irq = np.diff(qn)
-        #
-        percentiles = np.linspace(0, 1, self.n_bins + 1)
-        percentiles = np.quantile(y, percentiles)
-        percentiles[0] -= _StratifiedKFold.EPS
-        group = np.searchsorted(percentiles, y)
-
-        if self.clip_outliers=='tukey':
-            outliers = (self.k_outlier * irq) * [-1, 1] + qn #Tukey rule
-            mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
-        else:
-            mask_outliers = np.ones_like(y).astype(bool)
-        #
-        return group, mask_outliers
