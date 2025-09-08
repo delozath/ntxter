@@ -8,6 +8,23 @@ from typing import Iterator, Union, Tuple
 from sklearn.model_selection._split import BaseCrossValidator
 from sklearn.utils.validation import check_array
 
+def quantiles(y, n_bins=5, clip_outliers='tukey', k_outlier=1.5):
+    qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
+    irq = np.diff(qn)
+    #
+    percentiles = np.linspace(0, 1, n_bins + 1)
+    percentiles = np.quantile(y, percentiles)
+    percentiles[0] -= _StratifiedKFold.EPS
+    group = np.searchsorted(percentiles, y)
+
+    if clip_outliers=='tukey':
+        outliers = (k_outlier * irq) * [-1, 1] + qn #Tukey rule
+        mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
+    else:
+        mask_outliers = np.ones_like(y).astype(bool)
+    #
+    return group, mask_outliers
+
 class _StratifiedKFold(BaseCrossValidator):
     EPS = 1E-4
     X_train   = ArrayIndexSlice()
@@ -59,6 +76,8 @@ class QuantileStratifiedKFold(_StratifiedKFold):
         self.random_state = random_state
         self.clip_outliers = outliers
         self.k_outlier = k_outlier
+        #
+        self._quantiles = quantiles
     #
     def get_n_splits(self, X=None, y=None, groups=None) -> int:
         return self.n_splits
@@ -97,19 +116,3 @@ class QuantileStratifiedKFold(_StratifiedKFold):
             #
             yield mask
     #
-    def _quantiles(self, y):
-        qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
-        irq = np.diff(qn)
-        #
-        percentiles = np.linspace(0, 1, self.n_bins + 1)
-        percentiles = np.quantile(y, percentiles)
-        percentiles[0] -= _StratifiedKFold.EPS
-        group = np.searchsorted(percentiles, y)
-
-        if self.clip_outliers=='tukey':
-            outliers = (self.k_outlier * irq) * [-1, 1] + qn #Tukey rule
-            mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
-        else:
-            mask_outliers = np.ones_like(y).astype(bool)
-        #
-        return group, mask_outliers

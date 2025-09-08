@@ -1,73 +1,64 @@
-from ntxter.validation import UnpackDataAndCols
+import numpy as np
+from ntxter.validation import UnpackDataAndCols, ArrayIndexSlice
 
-class BundleTrainTestSplit:
+from abc import ABC, abstractmethod
+
+import warnings
+
+class _Bundle(ABC):
     _X = UnpackDataAndCols()
     _y = UnpackDataAndCols()
     def __init__(self, X, y):
         self._X = X
         self._y = y
-        self._n_train = None
-        self._n_test = None
-        self._n_validation = None
-    #
-    @property
-    def X(self):
-        return self._X[UnpackDataAndCols.VALS]
-    #
-    @property
-    def y(self):
-        return self._y[UnpackDataAndCols.VALS]
-    #
-    @property
-    def X_names(self):
-        return self._X[UnpackDataAndCols.COLS]
-    #
-    @property
-    def y_name(self):
-        return self._y[UnpackDataAndCols.COLS]
-    #
-    @property
-    def X_train(self):
-        if self._n_train is not None:
-            return self._X[UnpackDataAndCols.VALS][self._n_train]
-        else:
-            raise AttributeError("Train/test indexes must be set before calling X_train property")
-    @property
-    def y_train(self):
-        if self._n_train is not None:
-            return self._y[UnpackDataAndCols.VALS][self._n_train]
-        else:
-            raise AttributeError("Train/test indexes must be set before calling y_train property")
-    #
-    @property
-    def X_test(self):
-        if self._n_test is not None:
-            return self._X[UnpackDataAndCols.VALS][self._n_test]
-        else:
-            raise AttributeError("Train/test indexes must be set before calling X_test property")
-    @property
-    def y_test(self):
-        if self._n_test is not None:
-            return self._y[UnpackDataAndCols.VALS][self._n_test]
-        else:
-            raise AttributeError("Train/test indexes must be set before calling y_test property")
-    #
-    @property
-    def X_validation(self):
-        if self._n_validation is not None:
-            return self._X[UnpackDataAndCols.VALS][self._n_validation]
-        else:
-            raise AttributeError("Train/test indexes must be set before calling X_validation property")
-    @property
-    def y_validation(self):
-        if self._n_validation is not None:
-            return self._y[UnpackDataAndCols.VALS][self._n_validation]
-        else:
-            raise AttributeError("Train/test indexes must be set before calling y_validation property")        
-    #
-    def split(self, n_train, n_test, n_validation=None):
-        if n_validation is not None:
-            self._n_validation = n_validation
         #
-        self._n_train = n_train
-        self._n_test  = n_test
+        self.X, self.X_names = self._X
+        self.y, self.y_names = self._y
+        #
+        self._X, self._y = None, None
+        #
+        self.index = np.arange(self.X.shape[0])
+    #
+    @abstractmethod
+    def split(self, *args, **kwargs):
+        pass
+#
+#
+class BundleTrainTestSplit(_Bundle):
+    X_train = ArrayIndexSlice()
+    X_test  = ArrayIndexSlice()
+    y_train = ArrayIndexSlice()
+    y_test  = ArrayIndexSlice()
+    #
+    def __init__(self, X, y):
+        super().__init__(X, y)
+    #
+    def split(self, n_train, n_test):
+        self.X_train = self.X, n_train
+        self.X_test  = self.X, n_test
+        self.y_train = self.y, n_train
+        self.y_test  = self.y, n_test
+#
+#
+class BundleTrainTestUnseenSplit(BundleTrainTestSplit):
+    #
+    def __init__(self, X, y) -> None:
+        super().__init__(X, y)
+        self._unseen_flag = False
+    #
+    def set_unseen(self, idx):
+        mask = np.array([True if i in idx else False for i in self.index])
+        self.X_unseen = self.X[mask].copy()
+        self.y_unseen = self.y[mask].copy()
+        #
+        self.X = self.X[~mask].copy()
+        self.y = self.y[~mask].copy()
+        self.index = np.arange(self.X.shape[0])
+        #
+        self._unseen_flag = True
+    #
+    def split(self, n_train, n_test):
+        if self._unseen_flag:
+            return super().split(n_train, n_test)
+        else:
+            raise RuntimeError("Unseed data indexes have to be assigned before performing the split method")

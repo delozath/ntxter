@@ -55,6 +55,8 @@ class UnpackDataAndCols(_AbstractGetter):
                 value = value.flatten()
             #
             setattr(obj, self.private_name, (value, col_names))
+        elif value is None:
+                setattr(obj, self.private_name, None)
         #
         else:
-            raise ValueError(f"Attribute {value} must be pd.DataFrame | pd.Series | np.ndarray")
+            raise ValueError(f"Attribute {value} must be pd.DataFrame | pd.Series | np.ndarray | None")
