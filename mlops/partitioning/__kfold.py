@@ -66,6 +66,7 @@ class QuantileStratifiedKFold(_StratifiedKFold):
         self,
         n_splits: int = 5,
         n_bins: int = 5,
+        prop_test: float = 0.2,
         shuffle: bool = True,
         random_state: int | None = None,
         outliers: str = 'tukey',
@@ -81,6 +82,7 @@ class QuantileStratifiedKFold(_StratifiedKFold):
         super().__init__(n_splits)
         self.n_bins = n_bins
         self.shuffle = shuffle
+        self.prop_test = prop_test
         self.random_state = random_state
         self.clip_outliers = outliers
         self.k_outlier = k_outlier
@@ -111,8 +113,8 @@ class QuantileStratifiedKFold(_StratifiedKFold):
             for grp in np.unique(groups):
                 grp_idx = index[grp == groups]
                 #
-                n_grp_idx =  grp_idx.shape[0]
-                n_tt = np.ceil(n_grp_idx / self.n_splits).astype(int)
+                n_grp_idx =  grp_idx.shape[0] 
+                n_tt = np.ceil(n_grp_idx * self.prop_test).astype(int)
                 if n_tt < 2:
                     raise ValueError("Too many splits. Balance the trade-off between them and the number of bins")
                 #
