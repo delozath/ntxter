@@ -33,23 +33,6 @@ class _StratifiedKFold(BaseCrossValidator):
             raise ValueError("X and y must have the same lengths")
         #
         return y
-    #
-    def _quantiles(self, y):
-        qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
-        irq = np.diff(qn)
-        #
-        percentiles = np.linspace(0, 1, self.n_bins + 1)
-        percentiles = np.quantile(y, percentiles)
-        percentiles[0] -= _StratifiedKFold.EPS
-        group = np.searchsorted(percentiles, y)
-
-        if self.clip_outliers=='tukey':
-            outliers = (self.k_outlier * irq) * [-1, 1] + qn #Tukey rule
-            mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
-        else:
-            mask_outliers = np.ones_like(y).astype(bool)
-        #
-        return group, mask_outliers
 #
 class QuantileStratifiedKFold(_StratifiedKFold):
     def __init__(
@@ -113,3 +96,20 @@ class QuantileStratifiedKFold(_StratifiedKFold):
             mask &= mask_outliers
             #
             yield mask
+    #
+    def _quantiles(self, y):
+        qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
+        irq = np.diff(qn)
+        #
+        percentiles = np.linspace(0, 1, self.n_bins + 1)
+        percentiles = np.quantile(y, percentiles)
+        percentiles[0] -= _StratifiedKFold.EPS
+        group = np.searchsorted(percentiles, y)
+
+        if self.clip_outliers=='tukey':
+            outliers = (self.k_outlier * irq) * [-1, 1] + qn #Tukey rule
+            mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
+        else:
+            mask_outliers = np.ones_like(y).astype(bool)
+        #
+        return group, mask_outliers
