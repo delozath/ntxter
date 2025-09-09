@@ -40,25 +40,27 @@ class BundleTrainTestSplit(_Bundle):
         self.y_test  = self.y, n_test
 #
 #
-class BundleTrainTestUnseenSplit(BundleTrainTestSplit):
+class BundleMultSplitTrainTest(BundleTrainTestSplit):
     #
     def __init__(self, X, y) -> None:
         super().__init__(X, y)
-        self._unseen_flag = False
+        self._n_splits_count = 0
     #
-    def set_unseen(self, idx):
-        mask = np.array([True if i in idx else False for i in self.index])
-        self.X_unseen = self.X[mask].copy()
-        self.y_unseen = self.y[mask].copy()
+    def reserve(self, index, name):
+        X_tmp = self.X[index].copy()
+        y_tmp = self.y[index].copy()
+        setattr(self, f'X_{name}', X_tmp)
+        setattr(self, f'y_{name}', y_tmp)
         #
-        self.X = self.X[~mask].copy()
-        self.y = self.y[~mask].copy()
-        self.index = np.arange(self.X.shape[0])
+        self.X = np.delete(self.X, index, axis=0).copy()
+        self.y = np.delete(self.y, index).copy()
         #
-        self._unseen_flag = True
+        self._n_splits_count += 1
+    #
+    def set_unseen(self, index):
+        self.reserve(index, 'unseen')
     #
     def split(self, n_train, n_test):
-        if self._unseen_flag:
-            return super().split(n_train, n_test)
-        else:
-            raise RuntimeError("Unseed data indexes have to be assigned before performing the split method")
+        super().split(n_train, n_test)
+        if self._n_splits_count == 0:
+            warnings.warn("No splits have been set, train/test partitions is performed in the whole dataset")
