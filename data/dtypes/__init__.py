@@ -1,6 +1,6 @@
-from ntxter.data.dtypes.__dtypes import BundleTrainTestSplit, BundleTrainTestUnseenSplit
+from ntxter.data.dtypes.__dtypes import BundleTrainTestSplit, BundleMultSplitTrainTest
 
 __all__ =[
     'BundleTrainTestSplit',
-    'BundleTrainTestUnseenSplit'
+    'BundleMultSplitTrainTest'
 ]
