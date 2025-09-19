@@ -1,7 +1,7 @@
-from ntxter.mlops.reports.__reports import MetricsTableDriver
+from ntxter.mlops.reports.__reports import ModelPerformances
 from ntxter.mlops.reports.__reports import median_iqr_report
 
 __all__ = [
-    'MetricsTableDriver',
+    'ModelPerformances',
     'median_iqr_report'
 ]
