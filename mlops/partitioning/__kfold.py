@@ -1,12 +1,14 @@
+from typing import Iterator, Tuple, ClassVar, Any
+
+
 import numpy as np
 
-from collections import namedtuple
+from sklearn.model_selection._split import BaseCrossValidator
+from sklearn.utils.validation import check_array
+
 
 from ntxter.validation import ArrayIndexSlice
 
-from typing import Iterator, Union, Tuple
-from sklearn.model_selection._split import BaseCrossValidator
-from sklearn.utils.validation import check_array
 
 def quantiles(y, n_bins=5, clip_outliers='tukey', k_outlier=1.5):
     qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
@@ -24,6 +26,34 @@ def quantiles(y, n_bins=5, clip_outliers='tukey', k_outlier=1.5):
         mask_outliers = np.ones_like(y).astype(bool)
     #
     return group, mask_outliers
+
+
+class EvalLoopState:
+    _REGISTRY: ClassVar[dict[str, Any]] = {
+        "model_id": "",
+        "k": 0,
+        "outcome": "",
+        "ft included": "",
+    }
+    
+    @property
+    def k_iter(self):
+        return type(self)._REGISTRY
+    
+    @k_iter.setter
+    def k_iter(self, values):
+        keys = type(self)._REGISTRY.keys()
+        if isinstance(values, tuple) and len(values)==4:
+            mapping = dict(zip(keys, values))
+            type(self)._REGISTRY.update(mapping)
+        elif isinstance(values, dict):
+            if set(values.keys()) - set(keys):
+                raise KeyError("k_iter assignation failure, keys do not correspond")
+            else:
+                type(self)._REGISTRY.update(values)
+        else:
+            raise ValueError("Data to assign is not compatible")
+
 
 class _StratifiedKFold(BaseCrossValidator):
     EPS = 1E-4
@@ -50,7 +80,8 @@ class _StratifiedKFold(BaseCrossValidator):
             raise ValueError("X and y must have the same lengths")
         #
         return y
-#
+
+
 class QuantileStratifiedKFold(_StratifiedKFold):
     def __init__(
         self,
@@ -115,4 +146,3 @@ class QuantileStratifiedKFold(_StratifiedKFold):
             mask &= mask_outliers
             #
             yield mask
-    #
