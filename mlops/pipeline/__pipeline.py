@@ -1,18 +1,25 @@
 from abc import ABC, abstractmethod
+import trace
+
 
 from sklearn.pipeline import Pipeline
+
+
+from ntxter.validation import DuplicateKeyError
+
 
 class AbstractModelPipeline(ABC):
     def __init__(self, params: dict):
         self.params = params
+        self.info: dict = {}
         self.pipeline: Pipeline | None = None
     
     @abstractmethod
-    def _build(self, **kwargs) -> Pipeline:
+    def _build(self, **build_kwargs) -> Pipeline:
         ...
 
-    def compose(self, **kwargs):
-        self.pipeline = self._build(**kwargs)
+    def compose(self, **build_kwargs):
+        self.pipeline = self._build(**build_kwargs)
         return self
     
     def fit_predict_bundle(self, bdle):
@@ -29,12 +36,14 @@ class AbstractModelPipeline(ABC):
 class PipelineFactory:
     def __init__(self) -> None:
         self._registry = {}
+        self._pipes_info = {}
 
-    def register(self, key):
+    def register(self, key, info):
         def deco(fn):
             if key in self._registry:
-                raise KeyError(f"Builder name already registered '{key}'.")
+                raise DuplicateKeyError(f"Attempt to register the key '{key}' that is already registered model", 100)
             self._registry[key] = fn
+            self._pipes_info[key] = info
             return fn
         return deco
     
