@@ -9,18 +9,14 @@ from ntxter.validation import DuplicateKeyError
 
 
 class AbstractModelPipeline(ABC):
-    def __init__(self, params: dict):
-        self.params = params
-        self.info: dict = {}
+    def __init__(self):
+        self.params: dict = {}
         self.pipeline: Pipeline | None = None
     
     @abstractmethod
-    def _build(self, **build_kwargs) -> Pipeline:
+    def build(self, *build_args, **build_kwargs) -> Pipeline:
+        # self.params and self.pipeline must be set
         ...
-
-    def compose(self, **build_kwargs):
-        self.pipeline = self._build(**build_kwargs)
-        return self
     
     def fit_predict_bundle(self, bdle):
         #NOTE: implement if self.pipeline is None -> self.compose()?
@@ -36,14 +32,15 @@ class AbstractModelPipeline(ABC):
 class PipelineFactory:
     def __init__(self) -> None:
         self._registry = {}
-        self._pipes_info = {}
 
-    def register(self, key, info):
+    def register(self, key: str, info: dict):
         def deco(fn):
             if key in self._registry:
                 raise DuplicateKeyError(f"Attempt to register the key '{key}' that is already registered model", 100)
-            self._registry[key] = fn
-            self._pipes_info[key] = info
+            if isinstance(info, dict):
+                raise TypeError("info parameter must be dict type")
+            reg = info | {'pipeline': fn}
+            self._registry[key] = reg
             return fn
         return deco
     
