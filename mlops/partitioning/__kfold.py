@@ -30,10 +30,13 @@ def quantiles(y, n_bins=5, clip_outliers='tukey', k_outlier=1.5):
 
 class EvalLoopState:
     _REGISTRY: ClassVar[dict[str, Any]] = {
-        "model_id": "",
-        "k": 0,
-        "outcome": "",
-        "ft included": "",
+        'summarize':  '',
+        'subtype':  '',
+        'ft_selection':  '',
+        'features':  '',
+        'processing':  '',
+        'outcome':  '',
+        'k': 0
     }
     
     @property

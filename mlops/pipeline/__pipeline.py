@@ -33,14 +33,12 @@ class PipelineFactory:
     def __init__(self) -> None:
         self._registry = {}
 
-    def register(self, def_pipe, descriptor, model_params, id=None):
-            key = (
-                id if id else f"{def_pipe.__name__}: {descriptor['outcome']} ~ {descriptor['model']}"
-            )
+    def register(self, cls, descriptor, params):
+            breakpoint()
             if key in self._registry:
                 raise DuplicateKeyError(f"Attempt to register the key '{key}' that is already registered model", 100)
-            inst = def_pipe()
-            inst.build(**model_params)
+            inst = cls()
+            inst.build(**params)
             reg = {'pipe_wrap': inst}
             reg |= descriptor
             self._registry[key] = reg
