@@ -10,7 +10,6 @@ from ntxter.validation import DuplicateKeyError
 
 class AbstractModelPipeline(ABC):
     def __init__(self):
-        self.params: dict = {}
         self.pipeline: Pipeline | None = None
     
     @abstractmethod
@@ -34,14 +33,16 @@ class PipelineFactory:
         self._registry = {}
 
     def register(self, cls, descriptor, params):
-            breakpoint()
+            key = descriptor['key']
             if key in self._registry:
                 raise DuplicateKeyError(f"Attempt to register the key '{key}' that is already registered model", 100)
             inst = cls()
             inst.build(**params)
-            reg = {'pipe_wrap': inst}
-            reg |= descriptor
-            self._registry[key] = reg
+            descriptor.pipeline = inst
+            self._registry[key] = descriptor
+    
+    def __getitem__(self, key, default=None):
+        return self._registry.get(key, default)
 
     def __repr__(self):
         output = f"{type(self).__name__} registered:\n"

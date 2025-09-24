@@ -7,8 +7,9 @@ import numpy as np
 from abc import ABC, abstractmethod
 
 
+from ntxter.validation import UnsetAttributeError, ExpectedTypeError
 from ntxter.validation import SingleAssignWithType, UnpackDataAndCols, ArrayIndexSlice
-
+from ntxter.mlops.pipeline import AbstractModelPipeline
 
 
 class _Bundle(ABC):
@@ -77,13 +78,14 @@ class ModelDescriptor:
     descriptors = SingleAssignWithType(dict)
     
     def __init__(self, descriptors):
+        self._pipeline = None
         if hasattr(self, '_SCHEMA'):
             if isinstance(descriptors, dict):
                 if (set(descriptors.keys()) - set(self._SCHEMA)) or (set(self._SCHEMA) - set(descriptors.keys())):
                     raise ValueError("descriptors are not in the correct schema")
                 self.descriptors = descriptors
             else:
-                raise ValueError(f"Expected dict type for descriptors parameter, {type(descriptors)} was received instead")
+                raise ExpectedTypeError('dict', f"{type(descriptors).__name__}") 
 
     @classmethod
     def register(cls, schema: list[str]) -> None:
@@ -94,6 +96,23 @@ class ModelDescriptor:
         else:
             raise ValueError(f"schema has to be a list[str] of model descriptors")
     
+    def __getitem__(self, key, default=None):
+        return self.descriptors.get(key, default)
+    
+    @property
+    def pipeline(self):
+        if self._pipeline:
+            return self._pipeline
+        else:
+            raise UnsetAttributeError()
+    
+    @pipeline.setter
+    def pipeline(self, pipe):
+        if isinstance(pipe, AbstractModelPipeline):
+            self._pipeline = pipe
+        else:
+            raise TypeError(f"Pipeline must be an implementation of 'AbstractModelPipeline', but {type(pipe).__name__} was provided")
+
     @property
     def schema(self):
         if self._SCHEMA:
@@ -104,4 +123,5 @@ class ModelDescriptor:
     @schema.setter
     def schema(self, value):
         raise ValueError("schema only can be assigned through classmethod 'register'")
+
     
