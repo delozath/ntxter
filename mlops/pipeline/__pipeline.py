@@ -41,6 +41,9 @@ class PipelineFactory:
             descriptor.pipeline = inst
             self._registry[key] = descriptor
     
+    def __iter__(self):
+        return iter(self._registry.items())
+
     def __getitem__(self, key, default=None):
         return self._registry.get(key, default)
 
