@@ -7,6 +7,7 @@ from sklearn.model_selection._split import BaseCrossValidator
 from sklearn.utils.validation import check_array
 
 
+from ntxter.validation import UnsetAttributeError
 from ntxter.validation import ArrayIndexSlice
 
 
@@ -26,36 +27,6 @@ def quantiles(y, n_bins=5, clip_outliers='tukey', k_outlier=1.5):
         mask_outliers = np.ones_like(y).astype(bool)
     #
     return group, mask_outliers
-
-
-class EvalLoopState:
-    _REGISTRY: ClassVar[dict[str, Any]] = {
-        'summarize':  '',
-        'subtype':  '',
-        'ft_selection':  '',
-        'features':  '',
-        'processing':  '',
-        'outcome':  '',
-        'k': 0
-    }
-    
-    @property
-    def k_iter(self):
-        return type(self)._REGISTRY
-    
-    @k_iter.setter
-    def k_iter(self, values):
-        keys = type(self)._REGISTRY.keys()
-        if isinstance(values, tuple) and len(values)==4:
-            mapping = dict(zip(keys, values))
-            type(self)._REGISTRY.update(mapping)
-        elif isinstance(values, dict):
-            if set(values.keys()) - set(keys):
-                raise KeyError("k_iter assignation failure, keys do not correspond")
-            else:
-                type(self)._REGISTRY.update(values)
-        else:
-            raise ValueError("Data to assign is not compatible")
 
 
 class _StratifiedKFold(BaseCrossValidator):

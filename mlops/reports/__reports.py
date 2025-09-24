@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-from ntxter.mlops.partitioning import EvalLoopState
+from ntxter.data.dtypes import EvalLoopStatus
 
 
 def median_iqr_report(x, decimals):
@@ -9,10 +9,10 @@ def median_iqr_report(x, decimals):
 
 
 class ModelPerformances:
-    def __init__(self, state_kfold: EvalLoopState) -> None:
+    def __init__(self, state_kfold: EvalLoopStatus) -> None:
         self._performances: list = []
         self._metrics: dict = {}
-        self.state_kfold: EvalLoopState = state_kfold
+        self.state_kfold: EvalLoopStatus = state_kfold
 
     def register(self, name):
         def deco(func):

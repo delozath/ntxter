@@ -1,5 +1,5 @@
 import warnings
-from typing import ClassVar
+from typing import ClassVar, Any
 
 
 import numpy as np
@@ -125,3 +125,64 @@ class ModelDescriptor:
         raise ValueError("schema only can be assigned through classmethod 'register'")
 
     
+class EvalLoopStatus:
+    MESSAGE = "Use method class registry to add a schema before trying the assignment of the k_iter attribute."
+    _SCHEMA: ClassVar[list[str]]
+    _k_iter: ClassVar[dict[str, Any]]
+
+    @classmethod
+    def registry(cls, schema):
+        if isinstance(schema, list):
+            cls._SCHEMA = schema + ['k']
+            cls._k_iter = {s:'' for s in cls._SCHEMA}
+
+    def __getitem__(self, key, default=None):
+        if self._k_iter:
+            return self._k_iter.get(key, default)
+        else:
+            raise UnsetAttributeError(EvalLoopStatus.MESSAGE)
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            if key in self._k_iter:
+                self._k_iter.update({key: value})
+            else:
+                raise KeyError()
+        elif isinstance(key, (list, tuple)) and isinstance(value, (list, tuple)):
+            if (len(key)==len(value)):
+                if not(set(key) - set(self._SCHEMA)):
+                    self._k_iter.update(dict(zip(key, value)))
+                else:
+                    raise KeyError(f"One or more keys provided ({str(key)}) are no within the schema")
+            else:
+                raise ValueError("Number of elements in 'key' has to match to value elements")
+        else:
+            raise TypeError("key or value types are not manageable with this driver")
+
+    def __repr__(self):
+        if hasattr(type(self), '_k_iter'):
+            return f"Class {type(self).__name__}: k_iter = {self._k_iter}"
+        else:
+            return str(self)
+    
+    @property
+    def k_iter(self):
+        if hasattr(type(self), '_k_iter'):
+            return type(self)._k_iter if type(self)._k_iter else None
+        raise UnsetAttributeError(EvalLoopStatus.MESSAGE)
+    
+    @k_iter.setter
+    def k_iter(self, values):
+        if self._SCHEMA:
+            if isinstance(values, tuple) and len(values)==len(self._SCHEMA):
+                mapping = dict(zip(self._SCHEMA, values))
+                type(self)._k_iter.update(mapping)
+            elif isinstance(values, dict):
+                if not(set(values.keys()) - set(self._SCHEMA)):
+                    type(self)._k_iter.update(values)
+                else:
+                    raise KeyError("keys in values parameters must match with the schema")
+            else:
+                raise ValueError("Data to assign is not compatible")
+        else:
+            raise UnsetAttributeError(EvalLoopStatus.MESSAGE)
