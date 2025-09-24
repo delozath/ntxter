@@ -1,9 +1,15 @@
+import warnings
+from typing import ClassVar
+
+
 import numpy as np
-from ntxter.validation import UnpackDataAndCols, ArrayIndexSlice
 
 from abc import ABC, abstractmethod
 
-import warnings
+
+from ntxter.validation import SingleAssignWithType, UnpackDataAndCols, ArrayIndexSlice
+
+
 
 class _Bundle(ABC):
     _X = UnpackDataAndCols()
@@ -66,36 +72,9 @@ class BundleMultSplitTrainTest(BundleTrainTestSplit):
             warnings.warn("No splits have been set, train/test partitions is performed in the whole dataset")
 
 
-from typing import Any, ClassVar
-
-class SingleAssignWithType:
-    def __init__(self, type_) -> None:
-        self.TYPE = type_
-    
-    def __set_name__(self, owner, name):
-        self.name = name
-        self.private_name = '_' + name
-    #
-    def __get__(self, obj, objtype=None):
-        if obj is None: 
-            return self
-        if hasattr(obj, self.private_name):
-            return getattr(obj, self.private_name)
-        else:
-            raise ValueError(f"Attribute {self.name} have not being set")
-    
-    def __set__(self, obj, value):
-        if hasattr(obj, self.private_name):
-            raise ValueError(f"{self.name} can only be assigned once")
-        if isinstance(value, self.TYPE):
-            setattr(obj, self.private_name, value)
-        else:
-            raise TypeError(f"Expected type for the attribute '{self.private_name[1:]}' is '{self.TYPE.__name__}', but '{type(value).__name__}'--type was provided instead")
-
 class ModelDescriptor:
     _SCHEMA: ClassVar[list[str]]
     descriptors = SingleAssignWithType(dict)
-    tmp = SingleAssignWithType(int)
     
     def __init__(self, descriptors):
         if hasattr(self, '_SCHEMA'):
@@ -103,7 +82,6 @@ class ModelDescriptor:
                 if (set(descriptors.keys()) - set(self._SCHEMA)) or (set(self._SCHEMA) - set(descriptors.keys())):
                     raise ValueError("descriptors are not in the correct schema")
                 self.descriptors = descriptors
-                self.tmp = 5
             else:
                 raise ValueError(f"Expected dict type for descriptors parameter, {type(descriptors)} was received instead")
 
@@ -116,7 +94,6 @@ class ModelDescriptor:
         else:
             raise ValueError(f"schema has to be a list[str] of model descriptors")
     
-class otra_cosa:
     @property
     def schema(self):
         if self._SCHEMA:
