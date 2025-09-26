@@ -15,6 +15,13 @@ class _GeneralGetterAndSetPrivateName:
             raise ValueError(f"Attribute {self.name} have not being set")
 
 
+class SingleAssignNoType(_GeneralGetterAndSetPrivateName):   
+    def __set__(self, obj, value):
+        if hasattr(obj, self.private_name):
+            raise ValueError(f"{self.name} can only be assigned once")
+        setattr(obj, self.private_name, value)
+
+
 class SingleAssignWithType(_GeneralGetterAndSetPrivateName):
     def __init__(self, type_) -> None:
         self.TYPE = type_

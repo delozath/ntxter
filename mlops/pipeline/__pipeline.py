@@ -14,9 +14,13 @@ class AbstractModelPipeline(ABC):
     
     @abstractmethod
     def build(self, *build_args, **build_kwargs) -> Pipeline:
-        # self.params and self.pipeline must be set
+        # self.pipeline must be set
         ...
     
+    @abstractmethod
+    def save(self, **save_kwargs):
+        ...
+
     def fit_predict_bundle(self, bdle):
         #NOTE: implement if self.pipeline is None -> self.compose()?
         self.pipeline.fit(bdle.X_train, bdle.y_train)

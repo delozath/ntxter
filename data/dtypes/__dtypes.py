@@ -1,15 +1,16 @@
 import warnings
 from typing import ClassVar, Any
+from abc import ABC, abstractmethod
 
 
 import numpy as np
-
-from abc import ABC, abstractmethod
 
 
 from ntxter.validation import UnsetAttributeError, ExpectedTypeError
 from ntxter.validation import SingleAssignWithType, UnpackDataAndCols, ArrayIndexSlice
 from ntxter.mlops.pipeline import AbstractModelPipeline
+from ntxter.toolbox.utils import nested_keys
+
 
 
 class _Bundle(ABC):
@@ -186,3 +187,21 @@ class EvalLoopStatus:
                 raise ValueError("Data to assign is not compatible")
         else:
             raise UnsetAttributeError(EvalLoopStatus.MESSAGE)
+
+
+class NestedDictionary:
+    data = SingleAssignWithType(dict)
+
+    def __init__(self, item: dict, default: Any | None = None) -> None:
+        self.data = item
+    
+    def __getitem__(self, key, default=None):
+        if isinstance(key, (str, int, float)):
+            return self._data.get(key, default)
+        elif isinstance(key, (list, tuple)):
+            return nested_keys(self._data, key)
+        else:
+            raise KeyError("Key type not accepted")           
+    
+    def __repr__(self) -> str:
+        return str(self._data)

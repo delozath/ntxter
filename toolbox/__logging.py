@@ -1,6 +1,6 @@
 import logging
 
-class LogDriver:
+class LogRegister:
     def __init__(self, path):
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
