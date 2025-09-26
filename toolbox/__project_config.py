@@ -26,20 +26,40 @@ class ProjectConfigLoader:
             raise ValueError("YAML file structure failed to include a 'general' document")
 
 class ProjectCfgNavigator:
+    schema = SingleAssignWithType(list)
+
     def __init__(self, cfg):
+        _ = self._integrity_header(cfg)
         self._cfg = cfg
+        self.schema = cfg.schema
+
         for c in cfg.schema:
             item = getattr(cfg, c)
             if isinstance(item, dict):
                 setattr(self, c, NestedDictionary(item))
             else:
                 setattr(self, c, item)
+        
         #TODO: reference for avoid duplicating dictionaries
         self.stage = (
             NestedDictionary(getattr(cfg, cfg.stage)) 
             if hasattr(cfg, cfg.stage) 
             else 'empty'
-         )
-        self.stage['store', '1M', 'paths']
-        breakpoint()
+        )
+    #
+    #TODO: full integrity header check
+    def _integrity_header(self, cfg):
+        try:
+            gral = cfg.general
+        except:
+            raise AttributeError("'general' is a mandatory attribute within cfg to continue")
+        else:
+            stage = gral.get('stage', '')
+            if stage in cfg.schema:
+                return
+            else:
+                raise AttributeError(f"Stage '{stage}' is not part of the available schema in cfg object")
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__} scheme: {self._cfg.schema}"
     

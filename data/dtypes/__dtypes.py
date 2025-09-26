@@ -203,5 +203,8 @@ class NestedDictionary:
         else:
             raise KeyError("Key type not accepted")           
     
+    def keys(self):
+        return self._data.keys()
+
     def __repr__(self) -> str:
         return str(self._data)
