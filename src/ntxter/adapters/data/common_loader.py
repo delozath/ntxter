@@ -1,7 +1,7 @@
 import pandas as pd
 
 
-from ntxter.core.loaders import DataLoader
+from ntxter.core.data.loaders import DataLoader
 
 
 class CommonTypesLoader(DataLoader):
