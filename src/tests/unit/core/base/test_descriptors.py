@@ -6,6 +6,8 @@ import pandas as pd
 
 from ntxter.core.base import descriptors
 
+#[TEST]
+#descriptors.SetPrivateNameAndGetter
 def test_set_private_name_and_getter_get_value():
     class Dummy:
         test_x = descriptors.SetPrivateNameAndGetter()
@@ -23,42 +25,96 @@ def test_set_private_name_and_getter_not_assigned():
         instance.test_x
 
 
+#[TEST]
+#descriptors.SingleAssignNoType
+@pytest.fixture
+def single_assign_notype():
+    class Dummy():
+        test_descr = descriptors.SingleAssignNoType()
+    return Dummy()
+
+def test_single_assign_no_type_case1(single_assign_notype):
+    single_assign_notype.test_descr = 'hola'
+    assert single_assign_notype.test_descr == 'hola'
+    assert single_assign_notype._test_descr == single_assign_notype.test_descr
+    with pytest.raises(ValueError, match='test_descr can only be assigned once'):
+        single_assign_notype.test_descr = 'adios'
+
+
+def test_single_assign_no_type_case2(single_assign_notype):
+    df = pd.DataFrame()
+    single_assign_notype.test_descr = df
+    assert single_assign_notype.test_descr is df
+    assert single_assign_notype._test_descr is single_assign_notype.test_descr
+
+    with pytest.raises(ValueError, match='test_descr can only be assigned once'):
+        single_assign_notype.test_descr = -56884
+        single_assign_notype.test_descr = 'aaaalo'
+        single_assign_notype.test_descr = 2j + 5
+
+
+def test_single_assign_no_type_case3(single_assign_notype):
+    single_assign_notype.test_descr = 3.1416
+    assert single_assign_notype.test_descr == 3.1416
+    assert single_assign_notype._test_descr == single_assign_notype.test_descr
+
+    with pytest.raises(ValueError, match='test_descr can only be assigned once'):
+        single_assign_notype.test_descr = 0
+
+
+#[TEST]
+#SingleAssignWithType
+def test_single_assign_with_type_int():
+    value = 10
+
+    class Dummy():
+        test_descr = descriptors.SingleAssignWithType(type(value))
+    
+    instance = Dummy()
+    with pytest.raises(ValueError, match='Attribute test_descr have not being set'):
+        instance.test_descr
+    
+    with pytest.raises(TypeError):
+        instance.test_descr = str(value)
+        instance.test_descr = float(value)
+        instance.test_descr = pd.DataFrame([value])
+
+    instance.test_descr = value
+    assert instance.test_descr == value
+
+    with pytest.raises(ValueError, match='test_descr can only be assigned once'):
+        instance.test_descr = 2 * value
+        instance.test_descr = 'a'
+
+
+def test_single_assign_with_type_df():
+    value = pd.DataFrame([1, 2, 3])
+
+    class Dummy():
+        test_descr = descriptors.SingleAssignWithType(type(value))
+    
+    instance = Dummy()
+    with pytest.raises(ValueError, match='Attribute test_descr have not being set'):
+        instance.test_descr
+    
+    with pytest.raises(TypeError):
+        instance.test_descr = str(value)
+        instance.test_descr = 3.5
+        instance.test_descr = 2
+
+    instance.test_descr = value
+    assert isinstance(instance.test_descr, pd.DataFrame)
+    assert instance.test_descr is value
+
+    fake_value = pd.DataFrame([1, 2, 3])
+    assert not instance.test_descr is fake_value
+    
+    with pytest.raises(ValueError, match='test_descr can only be assigned once'):
+        instance.test_descr = 2 * value
+        instance.test_descr = 'a'
+        instance.test_descr = fake_value
 
 """
-class _GeneralGetterAndSetPrivateName:
-    def __set_name__(self, owner, name):
-        self.name = name
-        self.private_name = '_' + name
-    #
-    def __get__(self, obj, objtype=None):
-        if obj is None: 
-            return self
-        if hasattr(obj, self.private_name):
-            return getattr(obj, self.private_name)
-        else:
-            raise ValueError(f"Attribute {self.name} have not being set")
-
-
-class SingleAssignNoType(_GeneralGetterAndSetPrivateName):   
-    def __set__(self, obj, value):
-        if hasattr(obj, self.private_name):
-            raise ValueError(f"{self.name} can only be assigned once")
-        setattr(obj, self.private_name, value)
-
-
-class SingleAssignWithType(_GeneralGetterAndSetPrivateName):
-    def __init__(self, type_) -> None:
-        self.TYPE = type_
-    
-    def __set__(self, obj, value):
-        if hasattr(obj, self.private_name):
-            raise ValueError(f"{self.name} can only be assigned once")
-        if isinstance(value, self.TYPE):
-            setattr(obj, self.private_name, value)
-        else:
-            raise TypeError(f"Expected type for the attribute '{self.private_name[1:]}' is '{self.TYPE.__name__}', but '{type(value).__name__}'--type was provided instead")
-
-
 class ArrayIndexSlice(_GeneralGetterAndSetPrivateName):
     VALUES = 0
     INDEX = 1

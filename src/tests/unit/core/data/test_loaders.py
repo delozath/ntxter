@@ -15,7 +15,7 @@ test_path = Path('.').absolute()
 test_file = 'erase_tmp.CSV'
 
 @pytest.fixture
-def data_loader(mocker):
+def data_loader():
     class _Dummy(DataLoader):
         def load(self, *args, **kwargs):
             return data
