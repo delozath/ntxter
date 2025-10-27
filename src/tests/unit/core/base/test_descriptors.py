@@ -1,7 +1,31 @@
+from unittest.mock import MagicMock
+import pytest
+
 import numpy as np
 import pandas as pd
 
-class SetPrivateNameAndGetter:
+from ntxter.core.base import descriptors
+
+def test_set_private_name_and_getter_get_value():
+    class Dummy:
+        test_x = descriptors.SetPrivateNameAndGetter()
+    
+    instance = Dummy()
+    instance.test_x = 99
+    assert instance.test_x == 99
+
+def test_set_private_name_and_getter_not_assigned():
+    class Dummy:
+        test_x = descriptors.SetPrivateNameAndGetter()
+
+    instance = Dummy()
+    with pytest.raises(ValueError):
+        instance.test_x
+
+
+
+"""
+class _GeneralGetterAndSetPrivateName:
     def __set_name__(self, owner, name):
         self.name = name
         self.private_name = '_' + name
@@ -15,14 +39,14 @@ class SetPrivateNameAndGetter:
             raise ValueError(f"Attribute {self.name} have not being set")
 
 
-class SingleAssignNoType(SetPrivateNameAndGetter):   
+class SingleAssignNoType(_GeneralGetterAndSetPrivateName):   
     def __set__(self, obj, value):
         if hasattr(obj, self.private_name):
             raise ValueError(f"{self.name} can only be assigned once")
         setattr(obj, self.private_name, value)
 
 
-class SingleAssignWithType(SetPrivateNameAndGetter):
+class SingleAssignWithType(_GeneralGetterAndSetPrivateName):
     def __init__(self, type_) -> None:
         self.TYPE = type_
     
@@ -35,7 +59,7 @@ class SingleAssignWithType(SetPrivateNameAndGetter):
             raise TypeError(f"Expected type for the attribute '{self.private_name[1:]}' is '{self.TYPE.__name__}', but '{type(value).__name__}'--type was provided instead")
 
 
-class ArrayIndexSlice(SetPrivateNameAndGetter):
+class ArrayIndexSlice(_GeneralGetterAndSetPrivateName):
     VALUES = 0
     INDEX = 1
     def __set__(self, obj, value):
@@ -54,7 +78,7 @@ class ArrayIndexSlice(SetPrivateNameAndGetter):
             raise ValueError(f"Attribute {value} must be a tuple: (np.ndarray, list | np.ndarray)")
 #
 #
-class UnpackDataAndCols(SetPrivateNameAndGetter):
+class UnpackDataAndCols(_GeneralGetterAndSetPrivateName):
     VALS = 0
     COLS = 1
     def __set__(self, obj, value):
@@ -81,3 +105,4 @@ class UnpackDataAndCols(SetPrivateNameAndGetter):
         #
         else:
             raise ValueError(f"Attribute {value} must be pd.DataFrame | pd.Series | np.ndarray | None")
+"""
