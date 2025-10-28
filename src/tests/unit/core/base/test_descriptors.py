@@ -170,25 +170,6 @@ def test_array_index_slice_validations(array_index_slice):
     #breakpoint()
 
 """
-class ArrayIndexSlice(_GeneralGetterAndSetPrivateName):
-    VALUES = 0
-    INDEX = 1
-    def __set__(self, obj, value):
-        if (
-            isinstance(value      , tuple     ) and
-            isinstance(value[ArrayIndexSlice.VALUES], np.ndarray) and
-            isinstance(value[ArrayIndexSlice.INDEX], (list, np.ndarray))
-         ):
-            setattr(
-                obj,
-                self.private_name,
-                value[ArrayIndexSlice.VALUES][value[ArrayIndexSlice.INDEX]]
-             )
-        #
-        else:
-            raise ValueError(f"Attribute {value} must be a tuple: (np.ndarray, list | np.ndarray)")
-#
-#
 class UnpackDataAndCols(_GeneralGetterAndSetPrivateName):
     VALS = 0
     COLS = 1
