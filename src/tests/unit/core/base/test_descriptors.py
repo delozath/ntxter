@@ -114,6 +114,61 @@ def test_single_assign_with_type_df():
         instance.test_descr = 'a'
         instance.test_descr = fake_value
 
+
+#[TEST]
+#ArrayIndexSlice
+@pytest.fixture
+def array_index_slice():
+    class Dummy:
+        test_descr = descriptors.ArrayIndexSlice()
+    
+    return Dummy()
+
+def test_array_index_slice_assign_ordered(array_index_slice):
+    data = np.arange(200).reshape(25, -1, order='F')
+    index = np.arange(15)
+
+    array_index_slice.test_descr = (data, index)
+    assert all(array_index_slice.test_descr[:, 0] == index)
+
+def test_array_index_slice_assign_unordered(array_index_slice):
+    data = np.arange(200).reshape(25, -1, order='F')
+    index = np.arange(25)
+    choice = np.random.choice(index, 20, replace=False).copy()
+
+    array_index_slice.test_descr = (data, choice)
+    assert all(array_index_slice.test_descr[:, 0] == choice)
+
+def test_array_index_slice_multiple_assigns(array_index_slice):
+    data = np.arange(200).reshape(25, -1, order='F')
+    index = np.arange(25)
+
+    choice = np.random.choice(index, 20, replace=False).copy()
+    choice = list(choice)
+    array_index_slice.test_descr = (data, choice)
+    assert all(array_index_slice.test_descr[:, 0] == choice)
+
+    choice = np.random.choice(index, 10, replace=False).copy()
+    choice = list(choice)
+    array_index_slice.test_descr = (data, choice)
+    assert all(array_index_slice.test_descr[:, 0] == choice)
+    
+def test_array_index_slice_validations(array_index_slice):
+    data = np.arange(200).reshape(25, -1, order='F')
+    index = np.arange(25)
+    with pytest.raises(ValueError):
+        array_index_slice.test_descr = data
+        array_index_slice.test_descr = (pd.DataFrame(data), index)
+        array_index_slice.test_descr = (data, )
+        array_index_slice.test_descr = (data, 25)
+        array_index_slice.test_descr = (32, 32)
+    
+    with pytest.raises(IndexError):
+        array_index_slice.test_descr = (data, np.arange(26)[::-1][:10])
+        array_index_slice.test_descr = (data, np.arange(50)[::-1][:15])
+        array_index_slice.test_descr = (data, list(index) + [50])
+    #breakpoint()
+
 """
 class ArrayIndexSlice(_GeneralGetterAndSetPrivateName):
     VALUES = 0

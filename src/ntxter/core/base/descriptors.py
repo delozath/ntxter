@@ -44,16 +44,19 @@ class ArrayIndexSlice(SetPrivateNameAndGetter):
             isinstance(value[ArrayIndexSlice.VALUES], np.ndarray) and
             isinstance(value[ArrayIndexSlice.INDEX], (list, np.ndarray))
          ):
+            if max(value[ArrayIndexSlice.INDEX])>value[ArrayIndexSlice.VALUES].shape[0]:
+                raise IndexError('Index out of range')
+            
             setattr(
                 obj,
                 self.private_name,
                 value[ArrayIndexSlice.VALUES][value[ArrayIndexSlice.INDEX]]
              )
-        #
+        
         else:
             raise ValueError(f"Attribute {value} must be a tuple: (np.ndarray, list | np.ndarray)")
-#
-#
+
+
 class UnpackDataAndCols(SetPrivateNameAndGetter):
     VALS = 0
     COLS = 1
