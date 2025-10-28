@@ -66,7 +66,7 @@ class UnpackDataAndCols(SetPrivateNameAndGetter):
             setattr(obj, self.private_name, (value.values, col_names))
         #
         elif isinstance(value, pd.Series):
-            col_names = value.name
+            col_names = value.name if value.name is not None else 'default'
             setattr(obj, self.private_name, (value.to_numpy(), [col_names]))
         #
         elif isinstance(value, np.ndarray):
@@ -83,4 +83,4 @@ class UnpackDataAndCols(SetPrivateNameAndGetter):
                 setattr(obj, self.private_name, None)
         #
         else:
-            raise ValueError(f"Attribute {value} must be pd.DataFrame | pd.Series | np.ndarray | None")
+            raise ValueError(f"Attempts to assign {type(value)} type, use pd.DataFrame | pd.Series | np.ndarray | None, instead")

@@ -169,32 +169,166 @@ def test_array_index_slice_validations(array_index_slice):
         array_index_slice.test_descr = (data, list(index) + [50])
     #breakpoint()
 
-"""
-class UnpackDataAndCols(_GeneralGetterAndSetPrivateName):
-    VALS = 0
-    COLS = 1
-    def __set__(self, obj, value):
-        if isinstance(value, pd.DataFrame):
-            col_names = value.columns.to_list()
-            setattr(obj, self.private_name, (value.values, col_names))
-        #
-        elif isinstance(value, pd.Series):
-            col_names = value.name
-            setattr(obj, self.private_name, (value.to_numpy(), [col_names]))
-        #
-        elif isinstance(value, np.ndarray):
-            ndim = value.ndim
-            ncols = value.shape[-1] if ndim > 1 else 1
-            # 
-            col_names = list(range(ncols))
-            #
-            if (ndim==1 or (ncols==1)):
-                value = value.flatten()
-            #
-            setattr(obj, self.private_name, (value, col_names))
-        elif value is None:
-                setattr(obj, self.private_name, None)
-        #
-        else:
-            raise ValueError(f"Attribute {value} must be pd.DataFrame | pd.Series | np.ndarray | None")
-"""
+
+#[TEST]
+#UnpackDataAndCols
+@pytest.fixture
+def unpack_data_and_cols():
+    class Dummy:
+        test_descr = descriptors.UnpackDataAndCols()
+
+        def __init__(self) -> None:
+            N = 25
+            self.data_test = np.arange(200).reshape(N, -1, order='F')
+            self.index_test = np.arange(N)
+
+    return Dummy()
+
+def test_unpack_data_and_cols_df(unpack_data_and_cols):
+    import string
+    
+    letter = list(string.ascii_lowercase)
+    np.random.shuffle(letter)
+
+    data = pd.DataFrame(unpack_data_and_cols.data_test)
+    data.columns = [f'cols_test_{l}_{c + 1}' for l, c in zip(letter, data.columns)]
+    
+    unpack_data_and_cols.test_descr = data
+    X_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(X_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert X_test.shape == data.shape
+    assert len(data.columns) == len(colnames_test)
+    assert (X_test != data.values).sum() == 0
+    assert all(data.columns == colnames_test)
+
+def test_unpack_data_and_cols_unnamed_serie(unpack_data_and_cols):
+    data = unpack_data_and_cols.data_test
+    COL = np.random.randint(data.shape[-1])
+
+    serie = pd.Series(data[:, COL])
+    unpack_data_and_cols.test_descr = serie
+
+    x_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(x_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert x_test.shape == data[:, COL].shape
+    assert len(colnames_test) == 1
+    assert all(x_test == serie.values)
+    assert all(x_test == data[:, COL])
+    assert colnames_test[0] == 'default'
+
+def test_unpack_data_and_cols_named_serie(unpack_data_and_cols):
+    import string
+
+    letters = list(string.ascii_lowercase)
+
+    data = unpack_data_and_cols.data_test
+    COL = np.random.randint(data.shape[-1])
+    test_name = ''.join(np.random.choice(letters, 10))
+
+    serie = pd.Series(data[:, COL], name=test_name)
+    unpack_data_and_cols.test_descr = serie
+
+    x_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(x_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert x_test.shape == data[:, COL].shape
+    assert len(colnames_test) == 1
+    assert all(x_test == serie.values)
+    assert all(x_test == data[:, COL])
+    assert colnames_test[0] == test_name
+
+def test_unpack_data_and_cols_np_long(unpack_data_and_cols):
+    data = unpack_data_and_cols.data_test
+    
+    unpack_data_and_cols.test_descr = data
+    X_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(X_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert X_test.shape == data.shape
+    assert data.shape[-1] == len(colnames_test)
+    assert (X_test != data).sum() == 0
+    assert colnames_test == list(range(data.shape[-1]))
+
+def test_unpack_data_and_cols_np_wide(unpack_data_and_cols):
+    data = unpack_data_and_cols.data_test.T
+    
+    unpack_data_and_cols.test_descr = data
+    X_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(X_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert X_test.shape == data.shape
+    assert data.shape[-1] == len(colnames_test)
+    assert (X_test != data).sum() == 0
+    assert all(colnames_test == data[0])
+
+def test_unpack_data_and_cols_np_1d(unpack_data_and_cols):
+    #[TEST]
+    #select randomly X or X.T to test independence 1d np.ndarray
+    if np.random.randint(2)==0:
+        data = unpack_data_and_cols.data_test.T
+    else:
+        data = unpack_data_and_cols.data_test
+    
+    COL = np.random.randint(data.shape[-1])
+    
+    unpack_data_and_cols.test_descr = data[:, COL]
+    X_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(X_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert X_test.shape == data[:, COL].shape
+    assert len(colnames_test) == 1
+    assert (X_test != data[:, COL]).sum() == 0
+    assert colnames_test[0] == 0
+
+def test_unpack_data_and_cols_np_multidim(unpack_data_and_cols):
+    tmp = unpack_data_and_cols.data_test
+    data = np.concatenate(
+        (
+            tmp[:, :, None],
+            -tmp[:, :, None],
+            tmp[:, :, None]**2, 2*tmp[:, :, None],
+            np.sqrt(tmp)[:, :, None]
+         ), axis=-1
+     )
+    
+    unpack_data_and_cols.test_descr = data
+    X_test, colnames_test = unpack_data_and_cols.test_descr
+
+    assert isinstance(X_test, np.ndarray)
+    assert isinstance(colnames_test, list)
+
+    assert X_test.shape == data.shape
+    assert len(colnames_test) == data.shape[-1]
+    assert (X_test != data).sum() == 0
+    assert colnames_test == list(range(data.shape[-1]))
+
+def test_unpack_data_and_cols_validations(unpack_data_and_cols):
+    data = unpack_data_and_cols.data_test
+    COL = np.random.randint(data.shape[-1])
+    
+    unpack_data_and_cols.test_descr = None
+    assert unpack_data_and_cols.test_descr is None
+
+    with pytest.raises(ValueError):
+         unpack_data_and_cols.test_descr = list(data[:, COL])
+         unpack_data_and_cols.test_descr = 5
+         unpack_data_and_cols.test_descr = 3.1416
+
+#[NOTE]
+# add new descriptor tests here to control
+# the tested classes 
+print("descriptors.py successfully tested")
