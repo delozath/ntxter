@@ -39,5 +39,7 @@ def test__get_extension(data_loader):
     fake_fname = Path('tmp/test2.PArqueT')
     assert data_loader._get_extension(fake_fname) == 'parquet'
 
+#file = (test_path/test_file)
+#file.unlink()
 
-(test_path/test_file).unlink()
+
