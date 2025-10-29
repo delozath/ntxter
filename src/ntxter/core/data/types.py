@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 
 
-from ntxter.core.base.descriptors import UnpackDataAndCols
+from ntxter.core.base.descriptors import UnpackDataAndCols, ArrayIndexSlice
 
 
 class Bundles(ABC):
@@ -24,3 +24,18 @@ class Bundles(ABC):
     @abstractmethod
     def split(self, *args, **kwargs):
         pass
+
+class BundleTrainTest(Bundles):
+    X_train = ArrayIndexSlice()
+    X_test  = ArrayIndexSlice()
+    y_train = ArrayIndexSlice()
+    y_test  = ArrayIndexSlice()
+    
+    def __init__(self, X, y):
+        super().__init__(X, y)
+    
+    def split(self, n_train, n_test):
+        self.X_train = self.X, n_train
+        self.X_test  = self.X, n_test
+        self.y_train = self.y, n_train
+        self.y_test  = self.y, n_test
