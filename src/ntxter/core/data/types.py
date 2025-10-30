@@ -1,3 +1,4 @@
+import warnings
 from abc import ABC, abstractmethod
 
 
@@ -10,6 +11,12 @@ from ntxter.core.base.descriptors import UnpackDataAndCols, ArrayIndexSlice
 class Bundles(ABC):
     _X = UnpackDataAndCols()
     _y = UnpackDataAndCols()
+
+    X_train = ArrayIndexSlice()
+    X_test  = ArrayIndexSlice()
+    y_train = ArrayIndexSlice()
+    y_test  = ArrayIndexSlice()
+
     def __init__(self, X, y):
         self._X = X
         self._y = y
@@ -25,12 +32,8 @@ class Bundles(ABC):
     def split(self, *args, **kwargs):
         pass
 
+
 class BundleTrainTest(Bundles):
-    X_train = ArrayIndexSlice()
-    X_test  = ArrayIndexSlice()
-    y_train = ArrayIndexSlice()
-    y_test  = ArrayIndexSlice()
-    
     def __init__(self, X, y):
         super().__init__(X, y)
     
@@ -39,3 +42,29 @@ class BundleTrainTest(Bundles):
         self.X_test  = self.X, n_test
         self.y_train = self.y, n_train
         self.y_test  = self.y, n_test
+
+
+class BundleMultSplit(BundleTrainTest):
+    def __init__(self, X, y) -> None:
+        super().__init__(X, y)
+        self._n_splits_count = 0
+
+    def reserve(self, index, name):
+        X_tmp = self.X[index].copy()
+        y_tmp = self.y[index].copy()
+        setattr(self, f'X_{name}', X_tmp)
+        setattr(self, f'y_{name}', y_tmp)
+        
+        self.X = np.delete(self.X, index, axis=0).copy()
+        self.y = np.delete(self.y, index).copy()
+        
+        self._n_splits_count += 1
+    
+    def split_unseen(self, index):
+        self.reserve(index, 'unseen')
+    
+    def split(self, n_train, n_test):
+        super().split(n_train, n_test)
+        if self._n_splits_count == 0:
+            warnings.warn("No splits have been set, train/test partitions is performed in the whole dataset")
+
