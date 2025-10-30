@@ -328,6 +328,31 @@ def test_unpack_data_and_cols_validations(unpack_data_and_cols):
          unpack_data_and_cols.test_descr = 5
          unpack_data_and_cols.test_descr = 3.1416
 
+
+#[TEST]
+#UniversalGetterSetter
+#[PASSED]
+def test_UniversalGetterSetter():
+    value1 = 10
+    value2 = [1, 5, 7]
+
+    class Dummy():
+        test_descr = descriptors.SetterAndGetter()
+    
+    instance = Dummy()
+    with pytest.raises(ValueError):
+        instance.test_descr
+    
+    instance.test_descr = value1
+    assert instance.test_descr == value1
+
+    instance.test_descr = value2
+    assert instance.test_descr == value2
+
+    instance.test_descr = pd.DataFrame(value2)
+    assert (instance.test_descr != pd.DataFrame(value2)).sum().sum() == 0
+
+
 #[NOTE]
 # add new descriptor tests here to control
 # the tested classes 

@@ -15,6 +15,10 @@ class SetPrivateNameAndGetter:
             raise ValueError(f"Attribute {self.name} have not being set")
 
 
+class SetterAndGetter(SetPrivateNameAndGetter):
+    def __set__(self, obj, value):
+        setattr(obj, self.private_name, value)
+
 class SingleAssignNoType(SetPrivateNameAndGetter):   
     def __set__(self, obj, value):
         if hasattr(obj, self.private_name):
