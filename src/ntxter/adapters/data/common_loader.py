@@ -12,7 +12,8 @@ class CommonTypesLoader(DataLoader):
             'sav' : self._read_spss,
             'xls' : self._read_excel,
             'xlsx': self._read_excel,
-            'csv' : self._read_csv
+            'csv' : self._read_csv,
+            'parquet': self._read_parquet
         }
     
     def _read_spss(self):
@@ -30,6 +31,10 @@ class CommonTypesLoader(DataLoader):
         data = pd.read_csv(self.pfname)
         return data
     
+    def _read_parquet(self):
+        data = pd.read_parquet(self.pfname)
+        return data
+
     def load(self, *args, **kwargs):
         func = self._loaders.get(self.ext, None)
         if func is not None:
