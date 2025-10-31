@@ -1,6 +1,3 @@
-from __future__ import annotations
-import numpy as np
-import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.pipeline import Pipeline
 from dataclasses import dataclass, asdict
@@ -8,7 +5,6 @@ from typing import Optional, override
 
 
 from ntxter.core.pipelines import BaseRemoveOutliers
-
 
 
 @dataclass
@@ -26,6 +22,7 @@ class IFConfig:
             raise ValueError("n_estimators must be > 0")
         if self.random_state is not None and self.random_state < 0:
             raise ValueError("random_state must be >= 0 or None")
+
 
 class IsolationForestRemoveOutliers(BaseRemoveOutliers):
     def __init__(self, **kwargs) -> None:
