@@ -16,6 +16,7 @@ class IFConfig:
     contamination: float = 0.025
     n_estimators: int = 200
     max_samples: str | int = 'auto'
+    max_features: float = 0.6
     random_state: Optional[int] = 42
 
     def __post_init__(self):
