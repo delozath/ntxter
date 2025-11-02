@@ -9,9 +9,10 @@ from sklearn.metrics import recall_score
 
 from ntxter.core.mlops.partitioning import BaseQuantileStratifiedKFold
 
-N_SPLITS = 5
-N_ROWS = 200
+N_SPLITS = 8
+N_ROWS = 400
 N_COLS = 4
+N_TOL = 3
 
 def gen_data():
     """
@@ -81,15 +82,51 @@ def test_BaseQuantileStratifiedKFold__validations(base_qn_skf):
     assert (y_test != y).sum() == 0
 
 #[TEST]
-#[DEV]
+#[PASSED]
 # quantiles
-# outlier detection rate using recall
+# - outlier detection rate using recall considering the simulated outliers artificially added
+# - group detectio using ordered `y` and counting the number of elements a interval considering +- interval
 def test_BaseQuantileStratifiedKFold_quantile(base_qn_skf):
+    """
+    Notes
+    -----
+    This operation constructs the tolerance interval algebraically:
+
+        A = [[1, -N_TOL],
+            [1,  N_TOL]]
+        v = [N_ROWS / N_SPLITS, 1]
+
+        tolerance = A @ v
+
+    resulting in:
+
+        tolerance = [base - N_TOL, base + N_TOL]
+
+    where `base = N_ROWS / N_SPLITS`.
+    """
     X, y, mask = gen_data()
     group, mk_outliers = (
-        base_qn_skf.quantiles(y, n_bins=5, clip_outliers='tukey', k_outlier=1.5)
+        base_qn_skf.quantiles(y, n_bins=N_SPLITS, clip_outliers='tukey', k_outlier=1.5)
      )
     
     assert recall_score(mask.astype(int),  mk_outliers.astype(int), pos_label=0) > 0.9
     assert recall_score(mask.astype(int),  mk_outliers.astype(int), pos_label=1) > 0.9
-    breakpoint()
+
+    y.sort()
+    group, mk_outliers = (
+        base_qn_skf.quantiles(y, n_bins=N_SPLITS, clip_outliers='tukey', k_outlier=1.5)
+     )
+    group_test = np.diff(group)
+    indexes = np.concatenate((
+        [0], 
+        np.where(group_test==1)[0],
+        [N_ROWS]
+     ))
+    group_order = np.diff(indexes)
+    tolerance = (
+        np.array([[1, -N_TOL],
+                  [1,  N_TOL]])
+                  @
+        [N_ROWS / N_SPLITS, 1]
+     )
+    assert all((group_order > tolerance[0]) & (group_order < tolerance[1]))
