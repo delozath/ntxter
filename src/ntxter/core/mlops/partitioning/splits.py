@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+from typing import Generator
 
 import numpy as np
 
@@ -17,7 +17,7 @@ class BaseQuantileStratifiedKFold(ABC, BaseCrossValidator):
     #y_test    = ArrayIndexSlice()
     
     @abstractmethod
-    def _iter_test_masks(self, *args, **kwargs):
+    def _iter_test_masks(self, X, y, **kwargs) -> Generator:
         ...
 
     def __init__(self, n_splits):
@@ -50,12 +50,12 @@ class BaseQuantileStratifiedKFold(ABC, BaseCrossValidator):
         
         return y
     
-    def quantiles(self, y, n_bins=5, clip_outliers='tukey', k_outlier=1.5):       
+    def quantiles(self, y, n_bins, clip_outliers, k_outlier):       
         percentiles = np.linspace(0, 1, n_bins + 1)
         percentiles = np.quantile(y, percentiles)
         percentiles[0] -= BaseQuantileStratifiedKFold.EPS
         group = np.searchsorted(percentiles, y)
-
+        
         if clip_outliers=='tukey':
             qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
             irq = np.diff(qn)

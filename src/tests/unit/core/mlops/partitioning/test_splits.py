@@ -76,10 +76,14 @@ def test_BaseQuantileStratifiedKFold__validations(base_qn_skf):
     X_test, y_test = base_qn_skf._validations(X_df, y_df)
     assert (X_test != X).sum() == 0
     assert (y_test.ravel() != y).sum() == 0
+    assert type(X_test).__name__ == 'ndarray'
+    assert type(y_test).__name__ == 'ndarray'
 
     X_test, y_test = base_qn_skf._validations(X_df, y_s)
     assert (X_test != X).sum() == 0
     assert (y_test != y).sum() == 0
+    assert type(y_test).__name__ == 'ndarray'
+
 
 #[TEST]
 #[PASSED]

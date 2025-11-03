@@ -7,17 +7,12 @@ import numpy as np
 
 
 from ntxter.core.pipelines import BasePipeline
+from ntxter.core import utils
 
 
 class BaseRemoveOutliers(ABC, BasePipeline):   
     def __init__(self, cfg_dataclass, **kwargs) -> None:
-        config_fields = {f.name for f in fields(cfg_dataclass)}
-        params = set(kwargs.keys())
-
-        cfg_params = {k: kwargs[k] for k in params.intersection(config_fields)}
-        self.cfg_model_ = cfg_dataclass(**cfg_params)
-
-        self._params = {k: kwargs[k] for k in params - config_fields}
+        self.cfg_model_, self._params = utils.split_dataclass_kwargs(cfg_dataclass, **kwargs)
     
     @abstractmethod
     def run(self, *args, **kwargs) -> Self:
