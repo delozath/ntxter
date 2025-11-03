@@ -5,10 +5,7 @@ from typing import Self
 
 import numpy as np
 
-from sklearn.pipeline import Pipeline
 
-
-from ntxter.core.base.descriptors import SetterAndGetter
 from ntxter.core.pipelines import BasePipeline
 
 
