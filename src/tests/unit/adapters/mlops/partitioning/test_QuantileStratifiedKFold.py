@@ -31,22 +31,41 @@ def gen_data():
     return X, y, mask
 
 
+#[TEST]
+#[PASSED]
+# - assert splits correctness
+# - tt and tn have no common indices
+# - tt and tn combined have all indices
+def test_BaseQuantileStratifiedKFold_split_no_clip_outliers():
+    X, y, _ = gen_data()
+    instance = QuantileStratifiedKFold(n_splits=N_SPLITS)
+
+    assert instance.get_n_splits() == N_SPLITS
+    for tn, tt in instance.split(X, y):
+        assert len(set(tt).intersection(set(tn))) == 0
+        assert np.concatenate((tn, tt)).shape[0] == y.shape[0]
+
+#[TEST]
+#[PASSED]
+# - assert splits correctness with outliers clipping
+# - tn splits are different among iterations
+# - tt and tn have no common indices
+# - tt and tn combined have all non-outlier indices
 def test_BaseQuantileStratifiedKFold_split_clip_outliers():
     X, y, mask = gen_data()
     index = np.arange(y.shape[0])
     instance = QuantileStratifiedKFold(n_splits=N_SPLITS, clip_outliers='tukey')
 
-    for tn, tt in instance.split(X, y):
-        breakpoint()
+    tmp = None
+    for tn, tt, outlier in instance.split_outliers_clipping(X, y):
+        if tmp is not None:
+           assert np.setdiff1d(tn, tmp).shape[0] != 0
 
-#[TEST]
-def test_BaseQuantileStratifiedKFold_split_no_clip_outliers():
-    X, y, mask = gen_data()
-    instance = QuantileStratifiedKFold(n_splits=N_SPLITS)
+        assert len(np.intersect1d(tn, tt)) == 0
 
-    assert instance.get_n_splits() == N_SPLITS
-    #instance._iter_test_masks(X, y)
-    for tn, tt in instance.split(X, y):
-        assert len(set(tt).intersection(set(tn))) == 0
+        missing_index = np.setdiff1d(index, np.concatenate((tn, tt)))
+        np.testing.assert_array_equal(index[~mask], missing_index)
+        
+        assert np.concatenate((tn, tt)).shape[0] < index.shape[0]
 
-    
+        tmp = tn

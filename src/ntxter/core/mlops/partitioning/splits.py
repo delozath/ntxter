@@ -50,21 +50,10 @@ class BaseQuantileStratifiedKFold(ABC, BaseCrossValidator):
         
         return y
     
-    def quantiles(self, y, n_bins, clip_outliers, k_outlier):       
+    def quantiles(self, y, n_bins):       
         percentiles = np.linspace(0, 1, n_bins + 1)
         percentiles = np.quantile(y, percentiles)
         percentiles[0] -= BaseQuantileStratifiedKFold.EPS
         group = np.searchsorted(percentiles, y)
         
-        if clip_outliers=='tukey':
-            qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
-            irq = np.diff(qn)
-
-            outliers = (k_outlier * irq) * [-1, 1] + qn #Tukey rule
-            mask_outliers = (y>=outliers[0]) & (y<=outliers[1])
-        elif clip_outliers=='skip':
-                    mask_outliers = np.ones_like(y).astype(bool)
-        else:
-            raise NotImplementedError(f"clip method `{clip_outliers}` is not implemented yet")
-        
-        return group, mask_outliers
+        return group
