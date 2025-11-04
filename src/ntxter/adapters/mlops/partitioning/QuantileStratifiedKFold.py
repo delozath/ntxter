@@ -39,6 +39,7 @@ class QuantileStratifiedKFold(BaseQuantileStratifiedKFold):
        for mask_idx, outlier_idx in self._quantile_groups(X, y):
             tn_idx = np.setdiff1d(index[~mask_idx], outlier_idx)
             tt_idx = np.setdiff1d(index[ mask_idx], outlier_idx)
+
             yield tn_idx, tt_idx, outlier_idx
     
     def split(self, X, y=None, groups=None):

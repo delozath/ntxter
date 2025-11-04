@@ -44,6 +44,7 @@ def test_BaseQuantileStratifiedKFold_split_no_clip_outliers():
     for tn, tt in instance.split(X, y):
         assert len(set(tt).intersection(set(tn))) == 0
         assert np.concatenate((tn, tt)).shape[0] == y.shape[0]
+        assert tn.shape[0] > tt.shape[0]
 
 #[TEST]
 #[PASSED]
@@ -67,5 +68,6 @@ def test_BaseQuantileStratifiedKFold_split_clip_outliers():
         np.testing.assert_array_equal(index[~mask], missing_index)
         
         assert np.concatenate((tn, tt)).shape[0] < index.shape[0]
+        assert tn.shape[0] > tt.shape[0]
 
         tmp = tn
