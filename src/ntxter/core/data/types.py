@@ -33,9 +33,12 @@ class Bundles(ABC):
     def split(self, *args, **kwargs):
         pass
     
-    def to_pickle(self, path: str | Path):
-        with open(path, 'wb') as f:
-            pickle.dump(self, f)
+    def to_pickle(self, path: str | Path | None = None):
+        if path is not None:
+            with open(path, 'wb') as f:
+                pickle.dump(self, f)
+        else:
+            return pickle.dumps(self)
 
 
 class BundleTrainTest(Bundles):
