@@ -1,8 +1,9 @@
 import warnings
 from abc import ABC, abstractmethod
-
+import pickle
 
 import numpy as np
+from pathlib import Path
 
 
 from ntxter.core.base.descriptors import UnpackDataAndCols, ArrayIndexSlice
@@ -31,6 +32,10 @@ class Bundles(ABC):
     @abstractmethod
     def split(self, *args, **kwargs):
         pass
+    
+    def to_pickle(self, path: str | Path):
+        with open(path, 'wb') as f:
+            pickle.dump(self, f)
 
 
 class BundleTrainTest(Bundles):
