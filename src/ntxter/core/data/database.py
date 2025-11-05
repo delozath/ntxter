@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 
 
+import pandas as pd
+
+
 from ntxter.core.base.errors import DatabaseConnectionError
 
 class BaseDatabase(ABC):
@@ -20,7 +23,7 @@ class BaseDatabase(ABC):
         ...
 
     @abstractmethod
-    def execute_query(self, query: str, *query_args) -> list:
+    def execute_query(self, query: str, *query_args) -> list | pd.DataFrame:
         """Execute a query against the database and return results."""
         raise NotImplementedError
     
@@ -44,3 +47,7 @@ class BaseDatabase(ABC):
         keys = data.keys()
         placeholders = ", ".join("?" for _ in keys)
         return keys, placeholders
+    
+    @abstractmethod
+    def get_columns(self, table: str) -> list:
+        ...

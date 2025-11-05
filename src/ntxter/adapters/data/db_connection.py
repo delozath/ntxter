@@ -28,16 +28,9 @@ class SQLiteConnection(BaseDatabase):
     def disconnect(self) -> None:
         self.cursor.close()
 
-    def execute_query(self, query: str, fields: tuple) -> list:
+    def execute_query(self, table, query: str, fields: tuple) -> list | pd.DataFrame:
         self.cursor.execute(query, fields)
         res = list(self.cursor.fetchall())
-        
-        return res
-    
-    def query_equals_to_df(self, table, fields) -> pd.DataFrame:
-        base = f"""SELECT * FROM {table} WHERE \n"""
-        query =  base + ' AND '.join([f"{f} = ?\n" for f in fields.keys()])
-        res = self.execute_query(query, tuple(fields.values()))
         cols = self.get_columns(table)
 
         df = pd.DataFrame(res)
