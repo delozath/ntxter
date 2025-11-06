@@ -1,10 +1,6 @@
 from abc import ABC, abstractmethod
-from turtle import st
-from typing import Self, Iterable, Any
+from typing import override, Iterator, Dict, Callable
 from dataclasses import dataclass, field
-
-
-from sklearn.pipeline import Pipeline
 
 
 from ntxter.core.base.descriptors import SetterAndGetter, SetterAndGetterType
@@ -18,58 +14,42 @@ class BasePipeline():
 
 
 @dataclass
-class BaseModelConfig:
+class PipelineStageConfig:
+    stage: str
     family: str
     subfamily: str
-    type: str
-    params: dict = dict()
+    estimator: Callable
+    params: Dict
 
-class BasePipelineContiner(ABC):
-    registry = SetterAndGetterType(dict)
+    def __post_init__(self):
+        self.estimator(**self.params)
 
-    def register(self, name: str, pipeline: Pipeline) -> Self:
-        if name in self._registry.keys():
-            raise ValueError(f"Pipeline with name {name} is already registered.")
-        if not isinstance(pipeline, Pipeline):
-            raise TypeError("pipeline must be an instance of sklearn.pipeline.Pipeline")
-        self._registry(name, pipeline)
-        return self
 
-    @abstractmethod
-    def _register(self, name: str, pipeline: Pipeline) -> Self:
-        pass
-
-    def remove(self, name: str) -> None:
-        if name in self._registry().keys():
-            self._registry().pop(name)
-
-    def __get_item__(self, name: str) -> Pipeline:
-        if name not in self._registry.keys():
-            raise KeyError(f"Pipeline with name {name} is not registered.")
-        return self._registry()[name]
+class BaseRegistry[T](ABC):
+    registry: Dict[str, T] = SetterAndGetterType(dict)
     
-    def fit(self, X, y=None) -> Iterable:
-        try:
-            yield from self._fit(X, y)
-        except StopIteration:
-            print(f"Error occurred while fitting: {e}")
+    def __init__(self) -> None:
+        self.registry = dict()
+    
+    @abstractmethod
+    def register(self, name: str, **kwargs) -> None:
+        if name in self._registry:
+            raise ValueError(f"An item with name '{name}' is already registered.")
+    
+    def iterate(self) -> Iterator[tuple[str, T]]:
+        for name, item in self._registry.items():
+            yield name, item
 
-    def _fit(self, X, y):
-        for name, stage in self._registry().items():
-            stage.fit(X, y)
-            yield name, stage
-        
-        return self
 
+class BasePipelineContainer[T](BaseRegistry[T], ABC):
+    def __init__(self) -> None:
+        super().__init__()
+
+    @override
+    def register(self, name: str, **kwargs) -> None:
+        super().register(name, **kwargs)
+        self._pipelines[name] = self.build_pipeline_config(**kwargs)
 
     @abstractmethod
-    def __str__(self) -> str:
+    def build_pipeline_config(self, **kwargs) -> PipelineStageConfig:
         ...
-
-class BasePipelineContiner(ABC):
-
-    
-    @abstractmethod
-    def predict(self, X) -> Iterable:
-        ...
-    

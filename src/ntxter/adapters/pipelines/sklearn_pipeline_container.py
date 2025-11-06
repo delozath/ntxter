@@ -6,23 +6,28 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 
 
-from ntxter.core.pipelines.pipeline import BasePipelineContiner
+from ntxter.core import utils
+from ntxter.core.pipelines.pipeline import BasePipelineContainer, PipelineStageConfig
 
 
-class SklearnPipelineContainer(BasePipelineContiner):
+class SklearnPipelineContainer(BasePipelineContainer[Pipeline]):
     def __init__(self) -> None:
-        self.pipelines = dict()
-
+        super().__init__()
+    
+    @override
+    def build_pipeline_config(self, **kwargs) -> PipelineStageConfig:
+        dclass, _ = utils.split_dataclass_kwargs(PipelineStageConfig, **kwargs)
+        return dclass
+    """
     @override
     def _register(self, name: str, pipeline: Pipeline) -> None:
         self._pipelines[name] = pipeline
 
     @override
-    def fit(self, X, y):
-        for name, pipeline in self._pipelines.items():
-            pipeline.fit(X, y)
-
-            yield name, pipeline
+    def _fit(self, X, y):
+        for name, stage in self._registry().items():
+            stage.fit(X, y)
+            yield name, stage
     
     @override
     def predict(self, X):
@@ -30,3 +35,8 @@ class SklearnPipelineContainer(BasePipelineContiner):
             y = pipeline.predict(X)
 
             yield name, y
+    
+    @override
+    def __str__(self) -> str:
+        return f"SklearnPipelineContainer with {len(self._pipelines)} pipelines."
+    """
