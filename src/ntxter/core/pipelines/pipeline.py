@@ -1,5 +1,8 @@
-from abc import ABC, ABCMeta, abstractmethod
-from typing import Self, Iterable
+from abc import ABC, abstractmethod
+from turtle import st
+from typing import Self, Iterable, Any
+from dataclasses import dataclass, field
+
 
 from sklearn.pipeline import Pipeline
 
@@ -14,33 +17,59 @@ class BasePipeline():
         self._pipeline_.steps.insert(place, stage)
 
 
+@dataclass
+class BaseModelConfig:
+    family: str
+    subfamily: str
+    type: str
+    params: dict = dict()
+
 class BasePipelineContiner(ABC):
-    pipelines = SetterAndGetterType(dict)
+    registry = SetterAndGetterType(dict)
 
     def register(self, name: str, pipeline: Pipeline) -> Self:
-        if name in self._pipelines.keys():
+        if name in self._registry.keys():
             raise ValueError(f"Pipeline with name {name} is already registered.")
         if not isinstance(pipeline, Pipeline):
             raise TypeError("pipeline must be an instance of sklearn.pipeline.Pipeline")
-        self._register(name, pipeline)
+        self._registry(name, pipeline)
         return self
-    
+
     @abstractmethod
     def _register(self, name: str, pipeline: Pipeline) -> Self:
         pass
 
-    @abstractmethod
+    def remove(self, name: str) -> None:
+        if name in self._registry().keys():
+            self._registry().pop(name)
+
+    def __get_item__(self, name: str) -> Pipeline:
+        if name not in self._registry.keys():
+            raise KeyError(f"Pipeline with name {name} is not registered.")
+        return self._registry()[name]
+    
     def fit(self, X, y=None) -> Iterable:
+        try:
+            yield from self._fit(X, y)
+        except StopIteration:
+            print(f"Error occurred while fitting: {e}")
+
+    def _fit(self, X, y):
+        for name, stage in self._registry().items():
+            stage.fit(X, y)
+            yield name, stage
+        
+        return self
+
+
+    @abstractmethod
+    def __str__(self) -> str:
         ...
+
+class BasePipelineContiner(ABC):
+
     
     @abstractmethod
     def predict(self, X) -> Iterable:
         ...
     
-    def remove(self, name: str) -> None:
-        if name in self.pipelines.keys():
-            self.pipelines.pop(name)
-
-    def list(self):
-        for name in self.pipelines.keys():
-            print(name)
