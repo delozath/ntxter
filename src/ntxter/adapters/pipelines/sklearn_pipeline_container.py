@@ -16,8 +16,8 @@ class SklearnPipelineContainer(BasePipelineContainer[Pipeline]):
     
     @override
     def build_pipeline_config(self, **kwargs) -> PipelineStageConfig:
-        dclass, _ = utils.split_dataclass_kwargs(PipelineStageConfig, **kwargs)
-        return dclass
+        pipeline_cfg, _ = PipelineStageConfig(**kwargs)
+        return pipeline_cfg
     """
     @override
     def _register(self, name: str, pipeline: Pipeline) -> None:

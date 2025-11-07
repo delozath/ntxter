@@ -4,14 +4,14 @@ from dataclasses import fields
 import pandas as pd
 
 
-def split_dataclass_kwargs(dclass, **kwargs):
-    dclass_fields = {f.name for f in fields(dclass)}
+def safe_init(cls, **kwargs):
+    cls_fields = {f.name for f in fields(cls)}
     params = set(kwargs.keys())
 
-    dclass_params = {k: kwargs[k] for k in params.intersection(dclass_fields)}
-    another_params = {k: kwargs[k] for k in params - dclass_fields}
+    cls_params = {k: kwargs[k] for k in params.intersection(cls_fields)}
+    extra_params = {k: kwargs[k] for k in params - cls_fields}
 
-    return dclass(**dclass_params), another_params
+    return cls(**cls_params), extra_params
 
 
 def dropna_on_lists_cols(df: pd.DataFrame, cols: list | str | int):

@@ -6,11 +6,10 @@ from typing import Self
 import numpy as np
 
 
-from ntxter.core.pipelines import BasePipeline
 from ntxter.core import utils
 
 
-class BaseRemoveOutliers(ABC, BasePipeline):   
+class BaseRemoveOutliers(ABC):   
     def __init__(self, cfg_dataclass, **kwargs) -> None:
         self.cfg_model_, self._params = utils.split_dataclass_kwargs(cfg_dataclass, **kwargs)
     

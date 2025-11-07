@@ -1,6 +1,10 @@
 import warnings
+from typing import Any
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
+
 import pickle
+
 
 import numpy as np
 from pathlib import Path
@@ -76,3 +80,18 @@ class BundleMultSplit(BundleTrainTest):
         if self._n_splits_count == 0:
             warnings.warn("No splits have been set, train/test partitions is performed in the whole dataset")
 
+
+@dataclass
+class BasePipelineInfo:
+    name: str
+    description: str
+    family: str
+
+@dataclass
+class BasePipelineStage(BasePipelineInfo):
+    stage: str
+    estimator: Any
+    params: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.estimator(**self.params)

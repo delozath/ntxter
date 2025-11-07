@@ -1,28 +1,28 @@
 from abc import ABC, abstractmethod
-from typing import override, Iterator, Dict, Callable
+from typing import override, Iterator, Dict, Callable, List, Self
 from dataclasses import dataclass, field
 
 
-from ntxter.core.base.descriptors import SetterAndGetter, SetterAndGetterType
+import numpy as np
+import pandas as pd
 
 
-class BasePipeline():
-    pipeline_ =  SetterAndGetter()
-
-    def insert_stage(self, place: int, stage: tuple):
-        self._pipeline_.steps.insert(place, stage)
+from ntxter.core import utils
+from ntxter.core.base.descriptors import SetterAndGetterType
+from ntxter.core.data.types import BasePipelineStage
 
 
-@dataclass
-class PipelineStageConfig:
-    stage: str
-    family: str
-    subfamily: str
-    estimator: Callable
-    params: Dict
+class BasePipeline(ABC):
+    pipeline =  SetterAndGetterType(BasePipelineStage)
 
-    def __post_init__(self):
-        self.estimator(**self.params)
+    def __init__(self, **kwargs) -> None:
+        self.pipeline, extra_params = utils.safe_init(BasePipelineStage, **kwargs)
+        self._post_init(**extra_params)
+    
+    @abstractmethod
+    def _post_init(self, **kwargs) -> None:
+        pass
+
 
 
 class BaseRegistry[T](ABC):
@@ -41,15 +41,26 @@ class BaseRegistry[T](ABC):
             yield name, item
 
 
-class BasePipelineContainer[T](BaseRegistry[T], ABC):
+class BasePipelineContainer(BaseRegistry[BasePipeline], ABC):
     def __init__(self) -> None:
         super().__init__()
 
     @override
-    def register(self, name: str, **kwargs) -> None:
-        super().register(name, **kwargs)
-        self._pipelines[name] = self.build_pipeline_config(**kwargs)
+    def register(self, name: str, **pipeline_kwargs) -> None:
+        super().register(name, **pipeline_kwargs)
+        self._pipelines[name] = PipelineStageConfig(**pipeline_kwargs)
 
     @abstractmethod
-    def build_pipeline_config(self, **kwargs) -> PipelineStageConfig:
+    def fit(self, X: np.ndarray | pd.DataFrame, 
+                  y: np.ndarray | pd.Series) -> Iterator[tuple[str, T]]:
+        ...
+    
+    @abstractmethod
+    def predict(self, X: np.ndarray | pd.DataFrame) -> Iterator[int | float | np.ndarray | pd.Series | List]:
+        ...
+    
+    @abstractmethod
+    def validate(self, X: np.ndarray | pd.DataFrame, 
+                       y: np.ndarray | pd.Series,
+                       X_test: np.ndarray | pd.DataFrame) -> Iterator[int | float | np.ndarray | pd.Series | List]:
         ...
