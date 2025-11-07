@@ -1,10 +1,23 @@
 from sklearn.ensemble import IsolationForest
 from sklearn.pipeline import Pipeline
 from dataclasses import dataclass, asdict
-from typing import Optional, override
+from typing import Optional, Type, Dict, override
 
 
+from ntxter.core import utils
+from ntxter.core.data.types import PipelineProtocol
 from ntxter.core.pipelines import BaseRemoveOutliers
+from ntxter.core.base.descriptors import SetterAndGetterType
+from ntxter.core.data.types import BasePipelineStage
+
+@dataclass
+class BasePipelineStage:
+    stage: str
+    estimator: Type[EstimatorProtocol]
+    params: dict = field(default_factory=dict)
+
+    def __post_init__(self):
+        self.estimator(**self.params)
 
 
 @dataclass
@@ -23,8 +36,17 @@ class IFConfig:
         if self.random_state is not None and self.random_state < 0:
             raise ValueError("random_state must be >= 0 or None")
 
+BasePipelineStage[IFConfig]
 
 class IsolationForestRemoveOutliers(BaseRemoveOutliers):
+    pipeline: Dict[str, Type[PipelineProtocol]] = SetterAndGetterType(dict)
+
+    def __init__(self, **kwargs) -> None:
+        safe_kwargs = utils.safe_init(IFConfig, **kwargs)
+        BasePipelineStage
+        self.isof_ = utils.safe_init(IFConfig, **kwargs)
+        super().__init__()
+"""
     def __init__(self, **kwargs) -> None:
         super().__init__(IFConfig, **kwargs)
         self.pipeline_ = Pipeline([
@@ -54,3 +76,4 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
     
     def predict(self, *args, **kwargs):
         pass
+"""

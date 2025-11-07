@@ -1,12 +1,13 @@
 import warnings
-from typing import Any
+from typing import Dict, List, Any, Protocol, Type
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict, is_dataclass
 
 import pickle
 
 
 import numpy as np
+import pandas as pd
 from pathlib import Path
 
 
@@ -81,17 +82,23 @@ class BundleMultSplit(BundleTrainTest):
             warnings.warn("No splits have been set, train/test partitions is performed in the whole dataset")
 
 
-@dataclass
-class BasePipelineInfo:
-    name: str
-    description: str
-    family: str
+class EstimatorProtocol(Protocol):
+    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series) -> Any: ...
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray | pd.Series | List: ...
+
+class PipelineProtocol(Protocol):
+    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series) -> Any: ...
+    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray | pd.Series | List: ...
+    def transform(self, X: np.ndarray | pd.DataFrame) -> np.ndarray | pd.DataFrame: ...
 
 @dataclass
-class BasePipelineStage(BasePipelineInfo):
+class BasePipelineStage[P]:
     stage: str
-    estimator: Any
-    params: dict = field(default_factory=dict)
+    estimator: Type[EstimatorProtocol]
+    params: Dict | P = field(default_factory=dict)
 
     def __post_init__(self):
+        if is_dataclass(self.params):
+            self.params = asdict(self.params)
+        
         self.estimator(**self.params)

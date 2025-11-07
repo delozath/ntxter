@@ -1,17 +1,16 @@
 from abc import ABC, abstractmethod
 from dataclasses import fields
-from typing import Self
+from typing import Self, Type
 
 
 import numpy as np
 
 
-from ntxter.core import utils
+from ntxter.core.data.types import PipelineProtocol as Pipeline
 
 
 class BaseRemoveOutliers(ABC):   
-    def __init__(self, cfg_dataclass, **kwargs) -> None:
-        self.cfg_model_, self._params = utils.split_dataclass_kwargs(cfg_dataclass, **kwargs)
+    pipeline: Type[Pipeline]
     
     @abstractmethod
     def run(self, *args, **kwargs) -> Self:
