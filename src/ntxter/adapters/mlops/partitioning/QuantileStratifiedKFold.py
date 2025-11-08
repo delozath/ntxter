@@ -12,6 +12,25 @@ from ntxter.core.mlops.partitioning import BaseQuantileStratifiedKFold
 
 @dataclass
 class QuantileStratifiedKFoldConfig:
+    """Configuration for QuantileStratifiedKFold."
+    
+    Parameters
+    ----------
+    n_splits : int
+        Number of folds. Must be at least 2.
+    n_bins : int
+        Number of bins to stratify the target variable. Must be at least 2.
+    prop_test : float
+        Proportion of the test set.
+    shuffle : bool
+        Whether to shuffle the data before splitting.
+    random_state : int | None
+        Random seed for reproducibility.
+    clip_outliers : str = 'tukey'
+        Method to clip outliers. Currently only 'tukey' is supported.
+    k_outlier : float
+        Multiplier for the interquartile range to define outliers. 
+    """
     n_splits: int = 5
     n_bins: int = 5
     prop_test: float = 0.2
@@ -30,11 +49,38 @@ class QuantileStratifiedKFoldConfig:
 
 
 class QuantileStratifiedKFold(BaseQuantileStratifiedKFold):
+    """Quantile Stratified K-Folds cross-validator with outlier clipping.
+    Provides train/test indices to split data into train/test sets.
+
+    Parameters
+    ----------
+    **kwargs : Any
+        Additional keyword arguments for the configuration.
+    """
+
     def __init__(self, **kwargs):
-        self.skf_params, self._params = utils.split_dataclass_kwargs(QuantileStratifiedKFoldConfig, **kwargs)
+        self.skf_params, self._params = utils.safe_init(QuantileStratifiedKFoldConfig, **kwargs)
         super().__init__(self.skf_params.n_splits)
 
     def split_outliers_clipping(self, X, y):
+       """Generate indices to split data into training and test set with outlier clipping.
+
+       Parameters
+       ----------
+       X : np.ndarray
+           Data, ensure there are no missing values.
+       y : np.ndarray
+           Target vector, needed for stratification.
+
+       Yields
+       ------
+       tn_idx : np.ndarray
+           Training set indices.
+       tt_idx : np.ndarray
+           Test set indices.
+       outlier_idx : np.ndarray
+           Outlier indices.
+       """
        index = np.arange(y.shape[0])
        for mask_idx, outlier_idx in self._quantile_groups(X, y):
             tn_idx = np.setdiff1d(index[~mask_idx], outlier_idx)
@@ -54,10 +100,49 @@ class QuantileStratifiedKFold(BaseQuantileStratifiedKFold):
         groups = None,
         **kwargs
     ):
+        """
+        Generate test set masks for each fold.
+        This method is called internally by the split method according to the BaseKFold API.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Data, ensure there are no missing values.
+        y : np.ndarray
+            Target vector, needed for stratification.
+        groups : Any
+            Not used, present for API consistency.
+        
+        Yields
+        ------
+        mask_idx : np.ndarray
+            Boolean mask for the test set.
+        """
         for mask_idx, _ in self._quantile_groups(X, y):
             yield mask_idx
     
     def _quantile_groups(self, X, y):
+        """
+        Generate test set masks with outlier clipping based on quantile stratification.
+        - Groups the target variable into quantiles.
+        - Clips outliers based on the specified method.
+        - Preserves the proportion of each quantile in the test set.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            Data, ensure there are no missing values.
+        y : np.ndarray
+            Target vector, needed for stratification.
+        
+        Yields
+        ------
+        mask_idx : np.ndarray
+            Boolean mask for the test set.
+        outlier_idx : np.ndarray
+            Indices of the outliers.
+
+        """
         X, y = self._validations(X, y)
         shape = X.shape[0]
         index = np.arange(shape).astype(int)
@@ -86,6 +171,25 @@ class QuantileStratifiedKFold(BaseQuantileStratifiedKFold):
             yield mask_idx, outlier_idx
 
     def _outliers_clipping(self, y):
+        """
+        Clip outliers from the target variable.
+        This method is called internally by the _quantile_groups method.
+
+        Parameters
+        ----------
+        y : np.ndarray
+            Target vector, needed for stratification.
+
+        Yields
+        ------
+        outliers : np.ndarray
+            Indices of the outliers.
+        
+        Raises
+        ------
+        NotImplementedError
+            If the specified clipping method is not supported.
+        """
         if self.skf_params.clip_outliers == 'tukey':
             qn = np.array([np.quantile(y, q) for q in [0.25, 0.75]])
             irq = np.diff(qn)

@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from dataclasses import fields
 from typing import Self, Type
 
 
@@ -13,7 +12,7 @@ class BaseRemoveOutliers(ABC):
     pipeline: Type[Pipeline]
     
     @abstractmethod
-    def run(self, *args, **kwargs) -> Self:
+    def predict(self, *args, **kwargs) -> Self:
         ...
     
     @abstractmethod

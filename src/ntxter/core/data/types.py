@@ -93,12 +93,34 @@ class PipelineProtocol(Protocol):
 
 @dataclass
 class BasePipelineStage[P]:
+    """A base class for a pipeline stage. Holds the estimator type and its parameters.
+    
+    Parameters
+    ----------
+    stage : str
+        The name of the pipeline stage.
+    etype : Type[EstimatorProtocol]
+        The estimator class (Protocol) for this stage. Defined in ntxter.core.data.types
+    estimator : EstimatorProtocol
+        The instance of the estimator.
+    params : Dict | P
+        The parameters to initialize the estimator. P is a generic type for specific parameter dataclasses.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    Type[EstimatorProtocol] is an abstraction for any estimator class that implements fit and predict methods. For example, sklearn Pipeline.
+    """
     stage: str
-    estimator: Type[EstimatorProtocol]
+    etype: Type[EstimatorProtocol]
+    estimator: EstimatorProtocol
     params: Dict | P = field(default_factory=dict)
 
     def __post_init__(self):
         if is_dataclass(self.params):
             self.params = asdict(self.params)
         
-        self.estimator(**self.params)
+        self.estimator = self.etype(**self.params)
