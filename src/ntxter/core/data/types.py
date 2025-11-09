@@ -116,11 +116,13 @@ class BasePipelineStage[P]:
     """
     stage: str
     etype: Type[EstimatorProtocol]
-    estimator: EstimatorProtocol
+    estimator: EstimatorProtocol | None = None
     params: Dict | P = field(default_factory=dict)
 
     def __post_init__(self):
         if is_dataclass(self.params):
             self.params = asdict(self.params)
         
+        breakpoint()
+
         self.estimator = self.etype(**self.params)

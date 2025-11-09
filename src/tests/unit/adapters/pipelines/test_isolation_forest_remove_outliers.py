@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import recall_score
 
 
-from ntxter.adapters.pipelines import IsolationForestRemoveOutliers
+from ntxter.adapters.pipelines.sklearn import IsolationForestRemoveOutliers
 
 
 def compare_arrays(a0, a1):
