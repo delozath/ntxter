@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Optional, Self, Type, Dict, override
 
 
-from numpy import ndarray
+import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.pipeline import Pipeline
 
@@ -35,14 +35,13 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
 
     def __init__(self, **kwargs) -> None:
         cls_kwargs, extra_kwargs = utils.safe_kwargs(IFConfig, **kwargs)
-        
-        isof = BasePipelineStage('Isolation Forest', IsolationForest, cls_kwargs)
+        isof = BasePipelineStage('Isolation Forest', IsolationForest, IFConfig(**cls_kwargs))
         self.pipeline = Pipeline([
             ('isof', isof.estimator)
         ])
     
     @override
-    def predict(self, X, scaler=None, scaler_kwargs={}) -> ndarray:
+    def predict(self, X: np.ndarray, scaler: EstimatorProtocol | None = None) -> np.ndarray:
         """
         Run the outlier removal process on the data X.
         Parameters
@@ -61,7 +60,7 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
         -----
         This method always fits the model to the data X and then identifies outliers.
         """
-        self.fit(X, scaler, scaler_kwargs)
+        self.fit(X, scaler)
         outliers_ = self.is_outlier(X)
         
         return outliers_
@@ -86,7 +85,7 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
             The fitted instance of IsolationForestRemoveOutliers.
         """
         if scaler is not None:
-            self.add_scale_stage('scaler', scaler, scaler_kwargs)
+            self.add_scale_stage('scaler', scaler)
 
         self.model_ = self._pipeline.fit(X)
         return self
@@ -119,8 +118,7 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
             self,
             name: str,
             index: int,
-            estimator: Type[EstimatorProtocol],
-            estimator_kwargs: Dict = {}
+            estimator: EstimatorProtocol,
         ) -> None:
         """
         Insert a new stage into the pipeline at the specified index.
@@ -145,14 +143,13 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
         self._pipeline.steps is a list of tuples (name, estimator) is based on Pipeline from sklearn
         https://scikit-learn.org/stable/modules/generated/sklearn.pipeline.Pipeline.html
         """
-        stage = BasePipelineStage(name, estimator, estimator_kwargs)
+        stage = BasePipelineStage(name, estimator)
         self._pipeline.steps.insert(index, (name, stage.estimator))
 
     def add_scale_stage(
             self,
             name: str,
-            estimator: Type[EstimatorProtocol],
-            estimator_kwargs: Dict = {}
+            estimator: EstimatorProtocol,
         ) -> None:
         """
         Insert a new scaling stage into the pipeline at the beginning.
@@ -171,4 +168,4 @@ class IsolationForestRemoveOutliers(BaseRemoveOutliers):
         -------
         None
         """
-        self.add_stage_at(name, 0, estimator, estimator_kwargs)
+        self.add_stage_at(name, 0, estimator)

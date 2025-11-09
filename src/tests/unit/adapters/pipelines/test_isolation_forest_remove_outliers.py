@@ -42,7 +42,23 @@ def test_IsolationForestRemoveOutliers_remove_outliers():
         random_state=None, 
         param_test='must be ignored'
      )
-    test_outliers = instance.predict(X, scaler = StandardScaler, scaler_kwargs = {})
+    test_outliers = instance.predict(X, scaler = StandardScaler)
+    
+    assert recall_score(outliers, test_outliers.astype(int), pos_label=0) > 0.9
+    assert recall_score(outliers, test_outliers.astype(int), pos_label=1) > 0.9
+
+
+def test_IsolationForestRemoveOutliers_remove_outliers_estimator_instance():
+    X, outliers = gen_data()
+    
+    instance = IsolationForestRemoveOutliers(
+        n_estimators=200, 
+        contamination=0.25, 
+        random_state=None, 
+        param_test='must be ignored'
+     )
+    
+    test_outliers = instance.predict(X, scaler = StandardScaler())
     
     assert recall_score(outliers, test_outliers.astype(int), pos_label=0) > 0.9
     assert recall_score(outliers, test_outliers.astype(int), pos_label=1) > 0.9
@@ -56,7 +72,7 @@ def test_IsolationForestRemoveOutliers_np():
         random_state=None, 
      )
     
-    test_outliers = instance.predict(X, scaler = StandardScaler, scaler_kwargs = {})
+    test_outliers = instance.predict(X, scaler = StandardScaler)
     assert compare_arrays(
         pd.DataFrame(X)[test_outliers].values,
         X[test_outliers]
@@ -72,7 +88,7 @@ def test_IsolationForestRemoveOutliers_df():
         random_state=None, 
      )
     
-    test_outliers = instance.predict(X, scaler = StandardScaler, scaler_kwargs = {})
+    test_outliers = instance.predict(X, scaler = StandardScaler)
     assert compare_arrays(
         df[test_outliers].values,
         X[test_outliers]
