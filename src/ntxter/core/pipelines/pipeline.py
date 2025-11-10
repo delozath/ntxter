@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import override, Iterator, Dict, List, Protocol, Type, Tuple
+from typing import override, overload, Iterator, Dict, List, Protocol, Type, Tuple
 
 
 import numpy as np
 import pandas as pd
 
 
-from ntxter.core import utils
 from ntxter.core.data.types import EstimatorProtocol as Estimator
 from ntxter.core.base.descriptors import SetterAndGetterType
 from ntxter.core.data.types import BasePipelineStage
@@ -33,17 +32,17 @@ class BasePipelineContainer(BaseRegistry, ABC):
     registry = SetterAndGetterType(dict)
 
     @override
-    def register(self, name: str,     
+    def register(self, name: str,
                        estimator: Type[Estimator] | Estimator,
                        params: Dict
          ) -> None:
         super().register(name, estimator, params)
-        self._registry[name] = BasePipelineStage(name=name, estimator=estimator, params=params)
+        self._registry[name] = BasePipelineStage(stage=name, estimator=estimator, params=params)
         breakpoint()
 
     @abstractmethod
     def fit(self, X: np.ndarray | pd.DataFrame, 
-                  y: np.ndarray | pd.Series) -> Iterator[Tuple[str, Type[Estimator]]]:
+                  y: np.ndarray | pd.Series) -> Iterator[Tuple[str, Estimator | Type[Estimator]]]:
         ...
     
     @abstractmethod

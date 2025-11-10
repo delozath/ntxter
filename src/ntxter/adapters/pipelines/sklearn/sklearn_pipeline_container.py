@@ -21,15 +21,12 @@ class SklearnPipelineContainer(BasePipelineContainer):
     
     @override
     def register(self, name: str,
-                       stage: str,
-                       estimator: Type[Estimator] | Estimator,
-                       params: Dict
+                       estimator: Estimator,
          ) -> None:
-        if name in self._registry:
+        if name in self._registry: # type: ignore[override]
             raise ValueError(f"An item with name '{name}' is already registered.")
 
-        self._registry[name] = BasePipelineStage(stage=stage, estimator=estimator, params=params)
-        breakpoint()
+        self._registry[name] = BasePipelineStage(stage=name, estimator=estimator)
     
     @override    
     def iterate(self) -> Iterator[tuple[str, BasePipelineStage]]:
@@ -38,8 +35,29 @@ class SklearnPipelineContainer(BasePipelineContainer):
 
     @override
     def fit(self, X: np.ndarray | pd.DataFrame, 
-                  y: np.ndarray | pd.Series) -> Iterator[Tuple[str, Type[Estimator]]]:
-        pass
+                  y: np.ndarray | pd.Series) -> Iterator[Tuple[str, Estimator | Type[Estimator]]]:
+        for name, stage in self.iterate():
+            stage.estimator.fit(X, y)
+            yield name, stage.estimator
+    
+    def fit_pipeline(self, name: str,
+                         X: np.ndarray | pd.DataFrame, 
+                         y: np.ndarray | pd.Series) -> Estimator | Type[Estimator]:
+        if name not in self._registry:
+            raise ValueError(f"No pipeline with name '{name}' is registered.")
+        
+        pipeline = self._registry[name]
+        pipeline.estimator.fit(X, y)
+        return pipeline.estimator
+    
+    def predict_pipeline(self, name: str,
+                             X: np.ndarray | pd.DataFrame) -> \
+            int | float | np.ndarray | pd.Series | List:
+        if name not in self._registry:
+            raise ValueError(f"No pipeline with name '{name}' is registered.")
+        
+        pipeline = self._registry[name]
+        return pipeline.estimator.predict(X)
     
     @override
     def predict(self, X: np.ndarray | pd.DataFrame) -> \
