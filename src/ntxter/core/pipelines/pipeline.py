@@ -17,7 +17,6 @@ class BaseRegistry(Protocol):
     
     @abstractmethod
     def register(self, name: str,
-                       stage: str,
                        estimator: Type[Estimator] | Estimator,
                        params: Dict
          ) -> None:
@@ -35,12 +34,11 @@ class BasePipelineContainer(BaseRegistry, ABC):
 
     @override
     def register(self, name: str,     
-                       stage: str,
                        estimator: Type[Estimator] | Estimator,
                        params: Dict
          ) -> None:
-        super().register(name, stage, estimator, params)
-        self._registry[name] = BasePipelineStage(name=name, stage=stage, estimator=estimator, params=params)
+        super().register(name, estimator, params)
+        self._registry[name] = BasePipelineStage(name=name, estimator=estimator, params=params)
         breakpoint()
 
     @abstractmethod
