@@ -1,16 +1,12 @@
-from calendar import c
-from dataclasses import dataclass
-from abc import ABC, abstractmethod
-from typing import Dict, Callable, override
+from typing import Dict, override
 
 
 import pandas as pd
 
 
-from ntxter.core.base.descriptors import SetterAndGetterType
 from ntxter.core import utils
 
-from ntxter.core.mlops.metrics import BaseMetricsContainter, BaseReportMetrics, Metric, Reporting
+from ntxter.core.mlops.metrics import BaseMetricsContainter, Metric
 
 
 class SklearnMetricsContainer(BaseMetricsContainter):
@@ -28,22 +24,11 @@ class SklearnMetricsContainer(BaseMetricsContainter):
         self._registry[name] = cls_kwargs
 
     @override
-    def compute(self, y_true, y_pred) -> pd.DataFrame:
+    def compute(self, y_true, y_pred) -> pd.DataFrame | Dict:
         results = {}
         for name, metric in self._registry.items():
             func = metric.function
             options = metric.options
             results[name] = func(y_true, y_pred, **options)
         
-        return pd.DataFrame([results])
-
-
-class SklearnReporting(BaseReportMetrics[float]):
-    @override
-    def add(self, report: Reporting[float]) -> None:
-        pass
-
-    @override
-    def build(self) -> pd.DataFrame:
-        pass
-
+        return results
