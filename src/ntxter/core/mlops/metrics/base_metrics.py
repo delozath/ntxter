@@ -22,12 +22,13 @@ class Metric:
 
 
 @dataclass
-class Reporting:
+class Reporting[T]:
     pipeline_id: str
     fold: int
+    performances: Dict[str, T]
 
 
-class MetricsContainter:
+class BaseMetricsContainter(ABC):
     registry = SetterAndGetterType(dict)
 
     def __init__(self) -> None:
@@ -43,5 +44,10 @@ class MetricsContainter:
     @abstractmethod
     def compute(self, y_true, y_pred) -> pd.DataFrame: ...
 
+
+class BaseReportMetrics[T](ABC):
     @abstractmethod
-    def set_info_report(self, fold, /, **kwargs): ...
+    def add(self, report: Reporting[T]) -> None: ...
+
+    @abstractmethod
+    def build(self) -> pd.DataFrame: ...
