@@ -1,0 +1,1 @@
+from ntxter.adapters.data.eda import DataProfiler as InitialProfiler
