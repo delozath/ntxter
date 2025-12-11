@@ -38,10 +38,22 @@ def gen_data():
     X_cat = pd.DataFrame(cat)
     X_cat.columns = [f'cat_col_{c+1}' for c in range(cat.shape[1])]
 
-    X_str = pd.DataFrame(str_X)
+    X_str = pd.DataFrame(str_X + ' datos')
     X_str.columns = [f'str_col_{c+1}' for c in range(str_X.shape[1])]
 
-    df = pd.concat([X, X_cat, X_str], axis=1)
+    X_comp = pd.concat((
+        pd.DataFrame(cat[:, 0:1]).replace({1: True, 2: False}).infer_objects(copy=False),
+        pd.DataFrame(cat[:, 0:1]).replace({1: True, 2: False}).infer_objects(copy=False),
+        pd.DataFrame(cat[:, 0:1]),
+        pd.DataFrame(cat[:, 0:1]).astype(str) + ' str testing',
+        X[['numeric_col_1']]
+     ), axis=1
+    )
+    X_comp.columns = ['bool_complete', 'bool_missings', 'cat_missings', 'cat_str_missings', 'numeric_missings']
+    cols = X_comp.filter(like='missing').columns
+    X_comp.loc[X_comp.index[:10], cols] = 'Nulificacion'
+
+    df = pd.concat([X, X_cat, X_str, X_comp], axis=1)
     return df
 
 @pytest.fixture
@@ -53,11 +65,11 @@ def normality_pd_df():
 
 def test_statistics_mean_pandas_df(normality_pd_df):
     df = normality_pd_df.container.data
-
-    number_cols = normality_pd_df.get_numerical_cols(df)
-    assert any(['str' in i for i in number_cols]) == False
+    
+    cols = normality_pd_df.disaggregate_to_df(df)
+    breakpoint()
+    #assert any(['str' in i for i in number_cols]) == False
 
     normality_pd_df.compute()
 
-    breakpoint()
 

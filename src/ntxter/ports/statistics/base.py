@@ -73,17 +73,7 @@ class StatisticsBase[U, T](ABC):
         return self
 
     @abstractmethod
-    def get_numerical_cols(self, data) -> list:
+    def disaggregate_cols(self, data) -> Dict[str, list | Dict]:
         ...
     
-    @abstractmethod
-    def get_number_cat_cols(self, data) -> list:
-        ...
-    
-    @abstractmethod
-    def get_number_ncat_cols(self, data) -> list:
-        ...
-    
-    def get_datetime_cols(self, data) -> list | None:
-        return None
     

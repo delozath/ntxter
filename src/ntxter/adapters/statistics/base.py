@@ -1,9 +1,37 @@
-from typing import override
+from typing import Dict, override
 
 import numpy as np
 import pandas as pd
 
+from ntxter.core.base.errors import UnknownDataTypeError
 from ntxter.ports.statistics.base import StatisticsBase, StatisticsDataContainer
+
+class PandasDFAnalyzer:
+    @staticmethod
+    def disaggregate_cols(df, MAX_CAT_LEVELS: int = 5) -> Dict[str, list | Dict]:
+        disaggregated = {}
+        
+        for nm, xf in df.items():
+            if pd.api.types.is_categorical_dtype(xf):
+                dtype = 'categorical'
+            elif pd.api.types.is_bool_dtype(xf):
+                dtype = 'bool'
+            elif pd.api.types.is_numeric_dtype(xf):
+                dtype = 'numerical'
+            elif pd.api.types.is_datetime64_any_dtype(xf):
+                dtype = 'datetime'
+            elif pd.api.types.is_string_dtype(xf):
+                dtype = 'string'
+            elif pd.api.types.is_object_dtype(xf):
+                dtype = 'object'
+            else:
+                raise UnknownDataTypeError(str(xf.dtype))
+            
+            ntype = 'discrete' if xf.nunique(dropna=True) < MAX_CAT_LEVELS + 1 else 'continuous'
+            disaggregated[nm] = {'dtype': dtype, 'ntype': ntype}
+
+        return disaggregated
+
 
 class StatisticsNormalityPandasDF(StatisticsBase[pd.DataFrame, pd.Series]):
     def __init__(self, data) -> None:
@@ -32,23 +60,14 @@ class StatisticsNormalityPandasDF(StatisticsBase[pd.DataFrame, pd.Series]):
         self.container = data
         return self
     
-    def get_numerical_columns(self) -> list[str]:
-        if self.container.data is None:
-            raise ValueError("Data container has no data.")
-        df = self.container.data
-        numerical_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-        return numerical_cols
-
     @override
-    def get_numerical_cols(self, data) -> list:
-        return data.select_dtypes(include=np.number).columns.tolist()
+    def disaggregate_cols(self, data) -> Dict[str, list | Dict]:
+        disaggregated = PandasDFAnalyzer.disaggregate_cols(data)
+        
+        return disaggregated
 
-    @override
-    def get_number_(self, data) -> list:
-        cols = data.select_dtypes(include=np.number).columns.tolist()
-
+    def disaggregate_to_df(self, data):
+        disaggregated = self.disaggregate_cols(data)
+        df = pd.DataFrame.from_dict(disaggregated, orient='index')
         breakpoint()
-
-    @override
-    def get_number_ncat_cols(self) -> list:
-        ...
+        return df
