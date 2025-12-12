@@ -1,7 +1,11 @@
-from typing import Dict, override
+from typing import Dict, Self, override
 
 import numpy as np
 import pandas as pd
+
+
+from scipy.stats import shapiro, normaltest, anderson, kstest, jarque_bera
+
 
 from ntxter.core.base.errors import UnknownDataTypeError
 from ntxter.ports.statistics.base import StatisticsBase, StatisticsDataContainer
@@ -42,22 +46,29 @@ class StatisticsNormalityPandasDF(StatisticsBase[pd.DataFrame, pd.Series]):
          )
     
     @override
-    def _compute(self, x) -> dict[str, float]:
-        if isinstance(x, (pd.DataFrame, pd.Series)):
-            mean_value = x.mean().to_dict()
-        elif isinstance(x, np.ndarray):
-            mean_value = float(np.mean(x))
-        else:
-            raise TypeError("Input data must be a NumPy array, Pandas DataFrame, or Pandas Series")
-        return {"mean": mean_value}
+    def _compute(self, x, grouping=None) -> dict[str, float]:
+        disagg = self.disaggregate_to_df(x)
+        cols = disagg.query("(dtype == 'numerical') & (ntype=='continuous')").index.tolist()
+
+        df = x[cols + grouping]
+        self.test_(df, grouping)
+        breakpoint()
+
+    def test_(self, df, grouping):
+        for name, group in df.groupby(grouping):
+            group = group.drop(columns=grouping)
+            breakpoint()
 
     @override
-    def compute(self, data: 'StatisticsDataContainer') -> 'StatisticsMean':
-        if data.data is None:
-            raise ValueError("Data container has no data to compute statistics on.")
-        stats = self._compute(data.data)
-        data.statistics = stats
-        self.container = data
+    def compute(self, data: pd.DataFrame, grouping: None = None) -> Self:
+        if grouping is not None:
+            grouping = [grouping] if isinstance(grouping, str) else grouping
+        
+        if isinstance(data, pd.DataFrame):
+            df = self._compute(data, grouping=grouping)
+        else:
+            raise TypeError("Data must be a Pandas DataFrame or a StatisticsDataContainer containing a Pandas DataFrame.")
+        
         return self
     
     @override
@@ -69,5 +80,6 @@ class StatisticsNormalityPandasDF(StatisticsBase[pd.DataFrame, pd.Series]):
     def disaggregate_to_df(self, data):
         disaggregated = self.disaggregate_cols(data)
         df = pd.DataFrame.from_dict(disaggregated, orient='index')
-        breakpoint()
+        
         return df
+    

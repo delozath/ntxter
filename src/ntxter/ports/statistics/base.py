@@ -51,12 +51,12 @@ class StatisticsBase[U, T](ABC):
     """
     
     @abstractmethod
-    def _compute(self, x) -> Dict[str, T]:
+    def _compute(self, x, grouping: list[str] | str | None = None) -> Dict[str, T]:
         ...
         raise NotImplementedError("Subclasses must implement the compute method.")
 
     @abstractmethod
-    def compute(self) -> Self:
+    def compute(self, data: U, grouping: list[str] | str | None = None) -> Self:
         """Computes the performance metrics based on the provided statistics data.
         Parameters
         ----------

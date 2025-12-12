@@ -56,6 +56,39 @@ def gen_data():
     df = pd.concat([X, X_cat, X_str, X_comp], axis=1)
     return df
 
+def df_structure_for_test():
+    df = df = pd.DataFrame({
+    "dtype": [
+        "numerical", "numerical", "numerical", "numerical", "numerical",
+        "numerical", "numerical", "numerical",
+        "string", "string",
+        "bool", "object", "object", "string", "object"
+    ],
+    "ntype": [
+        "continuous", "continuous", "continuous", "continuous", "continuous",
+        "discrete", "discrete", "discrete",
+        "continuous", "continuous",
+        "discrete", "discrete", "discrete", "discrete", "continuous"
+    ]
+    }, index=[
+        "numeric_col_1",
+        "numeric_col_2",
+        "numeric_col_3",
+        "numeric_col_4",
+        "numeric_col_5",
+        "cat_col_1",
+        "cat_col_2",
+        "cat_col_3",
+        "str_col_1",
+        "str_col_2",
+        "bool_complete",
+        "bool_missings",
+        "cat_missings",
+        "cat_str_missings",
+        "numeric_missings"
+    ])
+    return df
+
 @pytest.fixture
 def normality_pd_df():
     df = gen_data()
@@ -67,8 +100,10 @@ def test_statistics_mean_pandas_df(normality_pd_df):
     df = normality_pd_df.container.data
     
     cols = normality_pd_df.disaggregate_to_df(df)
+    assert df_structure_for_test().equals(cols)
+
+    normality_pd_df.compute(df, grouping='cat_col_1')
     breakpoint()
-    #assert any(['str' in i for i in number_cols]) == False
 
     normality_pd_df.compute()
 
