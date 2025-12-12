@@ -97,12 +97,12 @@ def normality_pd_df():
 
 
 def test_statistics_mean_pandas_df(normality_pd_df):
-    df = normality_pd_df.container.data
+    df = normality_pd_df.data
     
     cols = normality_pd_df.disaggregate_to_df(df)
     assert df_structure_for_test().equals(cols)
 
-    normality_pd_df.compute(df, grouping='cat_col_1')
+    normality_pd_df.compute(grouping='cat_col_1')
     breakpoint()
 
     normality_pd_df.compute()

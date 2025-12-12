@@ -7,73 +7,55 @@ import pandas as pd
 
 from ntxter.core.base.descriptors import SetterAndGetterType
 
-
 @dataclass
-class StatisticsDataContainer[U, T]:
-    """Base class for statistics data representation.
-    Attributes
-    ----------
-    name : str
-        Name of the statistics data.
-    description : str
-        Description of the statistics data.
-    data : np.ndarray | pd.DataFrame | pd.Series | None
-        The actual data, which can be a NumPy array, Pandas DataFrame, or Series.
-    
-    TODO
-    ----
-    Extend data type such as polars.
-    """
+class StatisticsContainer[T]:
     name: str
     description: str = ""
-    data: U | None = None
-    statistics: Dict[str, T] | None = None
-
-    def __post_init__(self):
-        if self.data is not None:
-            if not isinstance(self.data, (np.ndarray, pd.DataFrame, pd.Series)):
-                raise TypeError("data must be a NumPy array, Pandas DataFrame, or Pandas Series")
+    summary: Dict[str, T] | None = None
 
 
 class StatisticsBase[U, T](ABC):
-    container = SetterAndGetterType(StatisticsDataContainer)
+    data: U
+    stats = SetterAndGetterType(StatisticsContainer[T])
     """
     Base class for statistics performance metrics
 
     Methods
     -------
-    _compute(x) -> Dict[str, T]
-        Abstract method to compute performance metrics from input data.
-    
-    compute(data: StatisticsDataContainer) -> self
-        Computes the performance metrics based on the provided statistics data and stores in the data instance
-    
+    compute(self, data: StatisticsDataContainer) -> Self
+        Computes the performance metrics based on the provided statistics data.
     """
-    
-    @abstractmethod
-    def _compute(self, x, grouping: list[str] | str | None = None) -> Dict[str, T]:
-        ...
-        raise NotImplementedError("Subclasses must implement the compute method.")
 
     @abstractmethod
-    def compute(self, data: U, grouping: list[str] | str | None = None) -> Self:
-        """Computes the performance metrics based on the provided statistics data.
+    def compute(self, grouping: list[str] | str | None = None) -> Self | StatisticsContainer[T]:
+        """
+        Computes the performance metrics based on the provided statistics data.
         Parameters
         ----------
-        data : StatisticsDataContainer
-            The input statistics data.
+        grouping : list[str] | str | None, optional
+            Columns to group by before computing statistics, by default None
         
         Returns
         -------
-        StatisticsDataContainer
-            The computed performance metrics encapsulated in a StatisticsDataContainer instance.
+        Self | StatisticsDataContainer[T]
+            The instance itself with computed statistics or the statistics container.
         """
-        res = self._compute(self.container.data)
-        self.container.statistics = res
         return self
 
     @abstractmethod
     def disaggregate_cols(self, data) -> Dict[str, list | Dict]:
+        """
+        Disaggregates the columns of the data based on their types.
+        Parameters
+        ----------
+        grouping : list[str] | str | None, optional
+            Columns to group by before computing statistics, by default None
+        
+        Returns
+        -------
+        Dict[str, list | Dict]
+            A dictionary with column names as keys and their types as values.
+        """
         ...
     
     
