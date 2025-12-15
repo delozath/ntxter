@@ -70,7 +70,8 @@ class StatisticsNormalityPandasDF(StatisticsBase[pd.DataFrame, pd.DataFrame]):
                     
                     Test.append(df)
             result_df = pd.concat(Test, ignore_index=True)
-            breakpoint()
+            self.container.summary = {'results': result_df}
+            return result_df
         else:
             raise TypeError("Data must be a Pandas DataFrame.")
         
