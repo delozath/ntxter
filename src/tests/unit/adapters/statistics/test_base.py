@@ -102,9 +102,14 @@ def test_statistics_mean_pandas_df(normality_pd_df):
     cols = normality_pd_df.disaggregate_to_df(df)
     assert df_structure_for_test().equals(cols)
 
-    normality_pd_df.compute(grouping='cat_col_1')
+    res = normality_pd_df.compute(grouping='cat_col_1')
+    #manual assert # print results for visual inspection
     breakpoint()
+    assert True
 
-    normality_pd_df.compute()
+    #manual assert # print results for visual inspection
+    res_all = normality_pd_df.compute()
+    breakpoint()
+    assert True
 
 

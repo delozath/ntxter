@@ -74,8 +74,6 @@ class StatisticsNormalityPandasDF(StatisticsBase[pd.DataFrame, pd.DataFrame]):
             return result_df
         else:
             raise TypeError("Data must be a Pandas DataFrame.")
-        
-        return self
     
     @override
     def disaggregate_cols(self, data) -> Dict[str, list | Dict]:
