@@ -183,9 +183,17 @@ def colname2index(search: list[str], cols: list[str]) -> list[int]:
     list of int
         List of indices corresponding to the searched column names.
     
+    Raises
+    -------
+    ValueError
+        If any column name in `search` is not found in `cols`.
+    
     Notes
     -----
     Matrix multiplication is used to find indices efficiently.
     """
+    if len(set(search) - set(cols)) != 0:
+        raise ValueError("Some column names in `search` are not found in `cols`.")
+    
     mask = np.array(search)[:, None] == cols
     return (mask @ np.arange(mask.shape[1])).tolist()
