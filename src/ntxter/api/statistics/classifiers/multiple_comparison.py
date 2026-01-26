@@ -1,0 +1,1 @@
+from ntxter.adapters.statistics._multiple_classifier_comparison import ClassifierMultipleComparison as StandardMultipleComparison
