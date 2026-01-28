@@ -1,4 +1,5 @@
 from dataclasses import fields
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -197,3 +198,7 @@ def colname2index(search: list[str], cols: list[str]) -> list[int]:
     
     mask = np.array(search)[:, None] == cols
     return (mask @ np.arange(mask.shape[1])).tolist()
+
+class FilePathManager:
+    @staticmethod
+    def filepath(pfname: Path) -> Path:

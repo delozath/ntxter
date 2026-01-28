@@ -34,36 +34,46 @@ class ClassifierMultipleComparison:
         
         func(data, **kwargs)
 
+        return self
+
     def _frame_compute_mult_metrics(
             self,
             df: pd.DataFrame,
             model='model',
             iteration='iteration',
             metric='metric',
-            variable='variable' 
+            value='value' 
          ) -> Self | StatisticsContainer[str]:
         cols = df.columns.tolist()
-        n_cols = len(cols)
-        colnames_test =all(map(lambda x, ref=cols: x in ref, [model, iteration, metric, variable]))
-        if not colnames_test:
-            df.columns = [model, iteration, metric, variable]
-            print(f"Log: Column names changed to [{model}, {iteration}, {metric}, {variable}], assuming consistent order.")
         
-        breakpoint()
-        for grpnm, grp in df.groupby('variable'):
-            print(f"=== {grpnm} ===")
-            fried = pg.friedman(data=grp, dv="value", within="ft_used", subject="iteration")
+        colnames_test =all(map(lambda x, ref=cols: x in ref, [model, iteration, metric, value]))
+        if not colnames_test:
+            df.columns = [model, iteration, metric, value]
+            print(f"Log: Column names changed to [{model}, {iteration}, {metric}, {value}], assuming consistent order.")
+        
+        fried_tests = []
+        posthoc_test = {}
+        append = fried_tests.append
+        for grpnm, grp in df.groupby('metric'):
+            fried = pg.friedman(data=grp, dv="value", within="model", subject="iteration", method='f')
+            fried['metric'] = grpnm
+            append(fried)
             if fried['p-unc'].values[0]<0.05:
-                print("Significant differences found, proceeding with post-hoc")
+                #print("Significant differences found, proceeding with post-hoc")
                 posthoc = pg.pairwise_tests(
                     data=grp,
                     dv="value",
-                    within="ft_used",
+                    within="model",
                     subject="iteration",
                     parametric=False,
                     padjust='holm',
                     effsize='r'
                 )
-                print(posthoc.sort_values("p-corr"))
-            print(fried)
-      
+                posthoc_test[grpnm] = posthoc.sort_values("p-corr")
+
+        self.container.summary = {
+            'friedman': pd.concat(fried_tests, ignore_index=True),
+            'posthocs': posthoc_test
+        }
+
+        return self
