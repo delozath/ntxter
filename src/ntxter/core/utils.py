@@ -199,6 +199,7 @@ def colname2index(search: list[str], cols: list[str]) -> list[int]:
     mask = np.array(search)[:, None] == cols
     return (mask @ np.arange(mask.shape[1])).tolist()
 
-class FilePathManager:
-    @staticmethod
-    def filepath(pfname: Path) -> Path:
+
+def paths_checker(pthfname: Path) -> Path:
+    pthfname = Path(pthfname)
+    breakpoint()
