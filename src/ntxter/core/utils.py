@@ -200,6 +200,12 @@ def colname2index(search: list[str], cols: list[str]) -> list[int]:
     return (mask @ np.arange(mask.shape[1])).tolist()
 
 
-def paths_checker(pthfname: Path) -> Path:
-    pthfname = Path(pthfname)
-    breakpoint()
+def path_check(pth_fname: str, replace=False) -> Path:
+    pth = Path(pth_fname)
+    if not pth.parent.exists():
+        pth.parent.mkdir(parents=True, exist_ok=True)
+    
+    if pth.exists() and not replace:
+        raise FileExistsError(f"File {pth} already exists. To overwrite, set `replace=True`.")
+    
+    return pth
