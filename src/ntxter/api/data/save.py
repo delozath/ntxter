@@ -1,5 +1,6 @@
-from ntxter.adapters.data.common_saver import PandasFrameSafeFactory
+from ntxter.adapters.data.common_saver import PandasFrameSafeFactory, MarkdownSafe
 
 __all__ = [
-    'PandasFrameSafeFactory'
+    'PandasFrameSafeFactory',
+    'MarkdownSafe'
 ]
