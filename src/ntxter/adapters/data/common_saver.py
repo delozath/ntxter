@@ -6,13 +6,13 @@ from ntxter.core.data.savers import DataSaver
 
 
 class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
-    def __init__(self, data: pd.DataFrame, pth_fname: str, replace: bool):
+    def __init__(self, data: pd.DataFrame | dict | list, pth_fname: str, replace: bool):
         super().__init__(pth_fname, replace)
         self.data = data
         self.prepare()
     
     def prepare(self, *args, **kwargs) -> None:
-        self._loaders = {
+        self._savers = {
             'sav' : self._write_spss,
             'xls' : self._write_excel,
             'xlsx': self._write_excel,
@@ -22,11 +22,11 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
         }
     
     @classmethod
-    def save(cls, data: pd.DataFrame, pth_fname: str, replace: bool, *args, **kwargs) -> None:
+    def save(cls, data: pd.DataFrame | dict | list, pth_fname: str, replace: bool, *args, **kwargs) -> None:
         instance = cls(data, pth_fname, replace)
         ext = instance.pth_fname.suffix[1:].lower()
         
-        func = instance._loaders.get(ext, None)
+        func = instance._savers.get(ext, None)
         if func is not None:
             return func(**kwargs)
         else:
@@ -36,19 +36,31 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
         self.data.to_markdown(self.pth_fname)
 
     def _write_spss(self):
-        raise NotImplementedError("SPSS loader is not implemented yet.")
+        raise NotImplementedError("SPSS saver is not implemented yet.")
 
     
-    def _write_excel(self, sheets=None):
-        raise NotImplementedError("Excel loader is not implemented yet.")
-
+    def _write_excel(self, **kwargs):
+        index = kwargs.get('index', False)
+        
+        if isinstance(self.data, (pd.DataFrame, pd.Series)):
+            sheets = {'Sheet': self.data}
+        elif isinstance(self.data, list):
+            sheets = {f'Sheet_{i}': df for i, df in enumerate(self.data)}
+        elif isinstance(self.data, dict):
+            sheets = self.data
+        else:
+            raise ValueError("Data must be a DataFrame, list of DataFrames, or dict of DataFrames.")
+        
+        with pd.ExcelWriter(self.pth_fname) as writer:
+            for sheet_name, df in sheets.items():
+                df.to_excel(writer, sheet_name=sheet_name, index=index)
     
     def _write_csv(self, **kwargs):
         index = kwargs.get('index', True)
         self.data.to_csv(self.pth_fname, index=index)
     
     def _write_parquet(self):
-        raise NotImplementedError("Parquet loader is not implemented yet.")
+        raise NotImplementedError("Parquet saver is not implemented yet.")
 
 
 class MarkdownSafe(DataSaver[str]):

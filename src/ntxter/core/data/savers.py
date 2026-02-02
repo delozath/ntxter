@@ -5,12 +5,12 @@ from ntxter.core.utils import path_check
 
 
 class DataSaver[T](ABC):
-    data: T
+    data: T | dict[str, T]
     def __init__(self, pthfname: str, replace: bool=False) -> None:
         self.pth_fname = path_check(pthfname, replace)
       
     @abstractmethod
-    def prepare(self, data: T, *args, **kwargs) -> Self | None:
+    def prepare(self, data: T | dict[str, T], *args, **kwargs) -> Self | None:
         ...
     
     @abstractmethod
