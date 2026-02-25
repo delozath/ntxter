@@ -209,3 +209,67 @@ def path_check(pth_fname: str, replace=False) -> Path:
         raise FileExistsError(f"File {pth} already exists. To overwrite, set `replace=True`.")
     
     return pth
+
+def yes_no_to_num_map(
+        df: pd.DataFrame, 
+        col: str | list[str],
+        yes_val: int = 1,
+        no_val: int = 0,
+        yes_opts: str | list[str] = 'default', 
+        no_opts: str | list[str] = 'default'
+    ) -> pd.DataFrame:
+    """Replace values in specified columns with 'Yes' and 'No' based on provided mappings.
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input DataFrame.
+    col : str or list of str
+        Column name or list of column names to replace values in.
+    yes_opts : str or list of str, optional       
+        Value(s) to replace with 'Yes'. If 'default', uses the default mapping.
+    no_opts : str or list of str, optional
+        Value(s) to replace with 'No'. If 'default', uses the default mapping.
+    
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with replaced values in the specified columns.
+    
+    Raises
+    -------
+    ValueError
+        If any specified column does not exist in the DataFrame.
+    """
+    cols = [col] if isinstance(col, str) else list(col)
+
+    missing = [c for c in cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Column(s) not found in DataFrame: {missing}")
+    
+    if yes_opts=='default':
+        yes_opts = ['yes', 'y', '1', 'si', 'sí', 's', 'true', 'verdadero', 'verdadera', 'positivo', 'positiva']
+    
+    if no_opts=='default':
+        no_opts = ['no', 'n', '0', 'false', 'f', 'falso', 'falsa', 'negativo', 'negativa']
+
+    replace = {i: yes_val for i in yes_opts} | {i: no_val for i in no_opts}
+    for s in df[cols]:
+        print(f"processing {s}")
+        s = (df[s]
+             .str.lower()
+             .str.strip()
+             .str.replace(' ', '')
+             .replace(replace)
+            )
+
+        if s.nunique(dropna=True) > 2:
+            raise ValueError(
+                f"Column '{s.name}' has more than 2 unique non-null values after replacement; "
+                f"not expected for a binary column"
+            )
+
+        df = df.assign(
+            **{s.name: s.astype(float) if s.isnull().any() else s.astype(int)}
+         )
+    
+    return df
