@@ -273,3 +273,22 @@ def yes_no_to_num_map(
          )
     
     return df
+
+def binarize_by_zero_ref(
+        df: pd.DataFrame,
+        cols_zero_ref: dict[str, str],
+        zero_val: int = 0,
+        others: int = 1
+    ):
+    for col, zero_ref in cols_zero_ref.items():
+        if col not in df.columns:
+            raise ValueError(f"Column '{col}' not found in DataFrame.")
+        
+        values = zero_ref[zero_val]
+        df = df.assign(
+            **{col: df[col].replace({v:zero_val for v in values})}
+        )
+        df.loc[df[col]!=zero_val, col] = others
+        df[col] = df[col].astype(float) if df[col].isnull().any() else df[col].astype(int)
+    
+    return df
