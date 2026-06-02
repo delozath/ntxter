@@ -1,3 +1,4 @@
+from typing import Any
 from dataclasses import fields
 from pathlib import Path
 
@@ -84,7 +85,7 @@ def _check_list_str_type(
             raise ValueError("cols must be a list of column names or lists of column names.")
     return cols
 
-def _check_list_cols(df, cols: list[str] | str):
+def check_list_cols(df, cols: list[str] | str):
     """
     Check that all columns in cols exist in the DataFrame.
 
@@ -130,7 +131,7 @@ def dropna_cols(
     pandas.DataFrame
         DataFrame with rows containing no NaN values in the specified columns removed.
     """
-    cols = _check_list_cols(df, cols)
+    cols = check_list_cols(df, cols)
 
     return df[cols].dropna().copy()
 
@@ -160,7 +161,7 @@ def split_ft_cols(
         If no remaining columns are left after selecting feature columns.
     """
 
-    col_fts = _check_list_cols(df, fts)
+    col_fts = check_list_cols(df, fts)
     col_remain = list(set(df.columns) - set(col_fts))
 
     if len(col_remain) == 0:
@@ -292,3 +293,24 @@ def binarize_by_zero_ref(
         df[col] = df[col].astype(float) if df[col].isnull().any() else df[col].astype(int)
     
     return df
+
+def check_only_n_args(n: int, /, *args, **kwargs):
+        if kwargs:
+            raise ValueError("Only accepts columns as a positional argument.")
+        args_cpy = list_parser(args)
+        
+        if len(args) != n:
+            raise ValueError("Number of args differ from expected number of arguments.")
+
+        return args_cpy
+
+def list_parser(args: Any):
+        args_cpy = args[0].copy()
+        if isinstance(args_cpy, (bool, int, float, str)):
+            args_cpy = [args_cpy]
+        else:
+            try:
+                args_cpy = list(args_cpy)
+            except TypeError as e:
+                raise ValueError(f"Invalid input type for lst. Expected a list or tuple or Iterable that implements `list` parsing, got {type(args_cpy).__name__}.") from e
+        return args_cpy
