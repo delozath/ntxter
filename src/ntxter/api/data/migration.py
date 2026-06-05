@@ -1,4 +1,4 @@
-from ntxter.adapters.services.migrate import (
+from ntxter.adapters.services.migration import (
     CSVToLocalPostgreSQL,
     OrchestratorCSVToLocalPostgreSQL,
 )
