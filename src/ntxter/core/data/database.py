@@ -23,7 +23,7 @@ class BaseDatabase(ABC):
         ...
 
     @abstractmethod
-    def execute_query(self, query: str, *query_args) -> list | pd.DataFrame:
+    def execute_query(self, query: str, **kwargs) -> list | pd.DataFrame:
         """Execute a query against the database and return results."""
         raise NotImplementedError
     

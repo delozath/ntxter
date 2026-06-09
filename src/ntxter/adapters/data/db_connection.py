@@ -64,7 +64,6 @@ class SQLiteConnection(BaseDatabase):
 class PostgreSQLocalConnection(BaseDatabase):
     def connect(self) -> None:
         load_dotenv()
-
         try:
             from sqlalchemy import create_engine
             from sqlalchemy.engine import URL
@@ -76,9 +75,9 @@ class PostgreSQLocalConnection(BaseDatabase):
                 "postgresql+psycopg",
                 host=os.getenv("DB_HOST", "localhost"),
                 port=int(os.getenv("DB_PORT", "5432")),
-                database=os.getenv("POSTGRES_USER"),
-                username=os.getenv("POSTGRES_PASSWORD"),
-                password=os.getenv("POSTGRES_DB")
+                database=os.getenv("POSTGRES_DB"),
+                username=os.getenv("POSTGRES_USER"),
+                password=os.getenv("POSTGRES_PASSWORD")
             )
 
             self._engine = create_engine(url, pool_pre_ping=True)
