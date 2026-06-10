@@ -6,31 +6,83 @@ from enum import StrEnum
 from typing import Any, Literal, Mapping, Sequence
 
 
-AllowedValues = Literal["all"] | Sequence[Any]
-
-
 class ColumnDataType(StrEnum):
     """Supported logical data types for column schemas."""
 
     STRING = "str"
-    INTEGER = "int"
+    INT = "int"
     FLOAT = "float"
-    BOOLEAN = "bool"
+    BOOL = "bool"
     DATE = "date"
     DATETIME = "datetime"
-    MIXED_DATE = "date:mix"
+
+_DATE_DATA_TYPES = {
+    ColumnDataType.DATE,
+    ColumnDataType.DATETIME,
+}
 
 
 class ColumnKind(StrEnum):
     """Generic column roles used by adapters and domain services."""
 
-    CATEGORY = "category"
-    CONTINUOUS = "continuous"
     IGNORE = "ignore"
+    CATEGORY = "category"
     LONG_CATEGORY = "long_category"
+    NO_CATEGORY = "no_category"
     POSITIVE = "positive"
+    REAL = "real"
     TEXT = "text"
+    EMAIL = "email"
+    TELEPHONE = "telephone"
     UNIQUE = "unique"
+    
+
+def _validate_bool_flag(name: str, value: bool) -> None:
+    if not isinstance(value, bool):
+        raise TypeError(f"`{name}` must be a bool.")
+
+
+def _validate_numeric_bound(name: str, value: int | float | None) -> None:
+    if value is not None and not isinstance(value, (int, float)):
+        raise TypeError(f"`{name}` must be numeric or None.")
+
+
+def _is_integer(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_float_like(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _is_date_like(value: Any) -> bool:
+    return isinstance(value, (date, datetime))
+
+
+def _category_type_error(data_type: ColumnDataType) -> str:
+    labels = {
+        ColumnDataType.STRING: "a string",
+        ColumnDataType.INTEGER: "an integer",
+        ColumnDataType.FLOAT: "a float",
+        ColumnDataType.BOOLEAN: "a boolean",
+        ColumnDataType.DATE: "a date or datetime",
+        ColumnDataType.DATETIME: "a date or datetime",
+        ColumnDataType.MIXED_DATE: "a date or datetime",
+    }
+    return labels[data_type]
+
+
+def _matches_declared_type(data_type: ColumnDataType, value: Any) -> bool:
+    validators = {
+        ColumnDataType.STRING: lambda candidate: isinstance(candidate, str),
+        ColumnDataType.INTEGER: _is_integer,
+        ColumnDataType.FLOAT: _is_float_like,
+        ColumnDataType.BOOLEAN: lambda candidate: isinstance(candidate, bool),
+        ColumnDataType.DATE: _is_date_like,
+        ColumnDataType.DATETIME: _is_date_like,
+        ColumnDataType.MIXED_DATE: _is_date_like,
+    }
+    return validators[data_type](value)
 
 
 @dataclass(frozen=True)
@@ -81,10 +133,8 @@ class ColumnSchema:
             raise ValueError("`name` must be a non-empty string.")
         if self.old_name is not None and not isinstance(self.old_name, str):
             raise TypeError("`old_name` must be a string or None.")
-        if not isinstance(self.nullable, bool):
-            raise TypeError("`nullable` must be a bool.")
-        if not isinstance(self.strip, bool):
-            raise TypeError("`strip` must be a bool.")
+        _validate_bool_flag("nullable", self.nullable)
+        _validate_bool_flag("strip", self.strip)
 
         object.__setattr__(self, "data_type", ColumnDataType(self.data_type))
         if not isinstance(self.kind, str) or not self.kind.strip():
@@ -165,14 +215,10 @@ class NumericColumnSchema(ColumnSchema):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        for bound_name in ("min_value", "max_value"):
-            bound = getattr(self, bound_name)
-            if bound is not None and not isinstance(bound, (int, float)):
-                raise TypeError(f"`{bound_name}` must be numeric or None.")
-        if not isinstance(self.min_inclusive, bool):
-            raise TypeError("`min_inclusive` must be a bool.")
-        if not isinstance(self.max_inclusive, bool):
-            raise TypeError("`max_inclusive` must be a bool.")
+        _validate_numeric_bound("min_value", self.min_value)
+        _validate_numeric_bound("max_value", self.max_value)
+        _validate_bool_flag("min_inclusive", self.min_inclusive)
+        _validate_bool_flag("max_inclusive", self.max_inclusive)
         if (
             self.min_value is not None
             and self.max_value is not None
@@ -186,7 +232,6 @@ class NumericColumnSchema(ColumnSchema):
             and not (self.min_inclusive and self.max_inclusive)
         ):
             raise ValueError("Equal bounds must both be inclusive.")
-        self._validate_default()
 
     def validate_value(self, value: Any) -> None:
         """Validate numeric type, bounds, nullability, and allowed values.
@@ -252,8 +297,7 @@ class IntegerColumnSchema(NumericColumnSchema):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        if not isinstance(self.positive_only, bool):
-            raise TypeError("`positive_only` must be a bool.")
+        _validate_bool_flag("positive_only", self.positive_only)
 
     def validate_value(self, value: Any) -> None:
         """Validate integer type and inherited numeric rules.
@@ -274,7 +318,7 @@ class IntegerColumnSchema(NumericColumnSchema):
         super().validate_value(value)
         if value is None:
             return
-        if not isinstance(value, int) or isinstance(value, bool):
+        if not _is_integer(value):
             raise TypeError(f"`{self.name}` expects an integer value.")
         if self.positive_only and value <= 0:
             raise ValueError(f"`{self.name}` expects a positive integer.")
@@ -308,14 +352,15 @@ class StringColumnSchema(ColumnSchema):
         for limit_name in ("min_length", "max_length"):
             limit = getattr(self, limit_name)
             if limit is not None and (not isinstance(limit, int) or limit < 0):
-                raise ValueError(f"`{limit_name}` must be a positive integer or None.")
+                raise ValueError(
+                    f"`{limit_name}` must be a positive integer or None."
+                )
         if (
             self.min_length is not None
             and self.max_length is not None
             and self.min_length > self.max_length
         ):
             raise ValueError("`min_length` cannot be greater than `max_length`.")
-        self._validate_default()
 
     def validate_value(self, value: Any) -> None:
         """Validate string type, length, nullability, and allowed values.
@@ -345,8 +390,13 @@ class StringColumnSchema(ColumnSchema):
 
 
 @dataclass(frozen=True)
-class CategoricalColumnSchema(StringColumnSchema):
+class CategoricalColumnSchema(ColumnSchema):
     """Schema for columns constrained to a closed value set.
+
+    Notes
+    -----
+    This schema supports categorical values of any underlying type,
+    including numeric categories represented as int or float.
 
     Raises
     ------
@@ -361,6 +411,17 @@ class CategoricalColumnSchema(StringColumnSchema):
         super().__post_init__()
         if self.allowed == "all":
             raise ValueError("Categorical columns require explicit allowed values.")
+
+    def validate_value(self, value: Any) -> None:
+        """Validate categorical values using base rules and declared type."""
+
+        super().validate_value(value)
+        if value is None:
+            return
+
+        if not _matches_declared_type(self.data_type, value):
+            expected = _category_type_error(self.data_type)
+            raise TypeError(f"`{self.name}` expects {expected} category.")
 
 
 @dataclass(frozen=True)
@@ -385,11 +446,7 @@ class DateColumnSchema(ColumnSchema):
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        if self.data_type not in {
-            ColumnDataType.DATE,
-            ColumnDataType.DATETIME,
-            ColumnDataType.MIXED_DATE,
-        }:
+        if self.data_type not in _DATE_DATA_TYPES:
             raise ValueError("DateColumnSchema requires a date-compatible data_type.")
         if not isinstance(self.accepted_formats, tuple) or not all(
             isinstance(item, str) for item in self.accepted_formats
