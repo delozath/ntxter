@@ -409,3 +409,57 @@ class UnpackDataAndCols(SetPrivateNameAndGetter):
                 f"Attempts to assign {type(value)} type, use "
                 f"pd.DataFrame | pd.Series | np.ndarray | None, instead"
             )
+
+
+class RegistryFunctionDescriptor:
+    def __init__(self) -> None:
+        self.private_name: None | str = None 
+    
+    def __set_name__(self, owner, name):
+        self.private_name = "_" + name
+    
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        if not hasattr(instance, self.private_name):
+            setattr(instance, self.private_name, {})
+        
+        hidden_dict = getattr(instance, self.private_name)
+
+        return KeyLookup(hidden_dict)
+    
+    def __set__(self, instance, value) -> None:
+        raise AttributeError("registry is read-only.")
+
+    def __delete__(self, instance) -> None:
+        raise AttributeError("registry is read-only.")
+        
+
+class KeyLookup:
+    def __init__(self, hidden_dict: dict) -> None:
+        self._hidden_dict = hidden_dict
+    
+    def __getitem__(self, key):
+        if not key in self._hidden_dict:
+            raise KeyError(f"Key `{key}` not found in registry")
+        
+        return self._hidden_dict[key]
+    
+    def __set__(self, value) -> None:
+        raise AttributeError("Cannot set value in registry, use `register` method instead.")
+    
+    def __repr__(self) -> str:
+        return f"<View of {list(self._hidden_dict.keys())} keys>"
+    
+    def items(self):
+        return self._hidden_dict.items()
+    
+    def register(self, key: str):
+        def wrapper(func):
+            if key in self._hidden_dict:
+                raise ValueError(f"Key `{key}` already registered")
+            if not callable(func):
+                raise TypeError("Dict.value to registry must be a callable function")
+            self._hidden_dict[key] = func
+            return func
+        return wrapper
