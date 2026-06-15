@@ -2,6 +2,9 @@ from typing import Any
 from dataclasses import fields
 from pathlib import Path
 
+from collections.abc import Iterable
+
+
 import numpy as np
 import pandas as pd
 
@@ -75,15 +78,13 @@ def _check_list_str_type(
     ValueError
         If input is not a string or list of strings.
     """
-    col_type = type(cols).__name__
-    match col_type:
-        case 'str':
-            cols = [cols]
-        case 'list':
-            pass
-        case _:
-            raise ValueError("cols must be a list of column names or lists of column names.")
-    return cols
+    
+    if isinstance(cols, Iterable):
+        return cols if isinstance(cols, list) else list(cols)
+    if isinstance(cols, (str, bool, int, float)):
+        return [cols]
+    else:
+        raise ValueError("cols must be a list of column names or lists of column names.")
 
 def check_list_cols(df, cols: list[str] | str):
     """
@@ -109,7 +110,7 @@ def check_list_cols(df, cols: list[str] | str):
     cols = _check_list_str_type(cols)
     diff = set(cols) - set(df.columns)
     if len(diff) != 0:
-        raise ValueError("There are some columns in `cols` that are not found in DataFrame.")
+        raise ValueError(f"There are some columns in `{list(diff)}` that are not found in DataFrame.")
     return cols
 
 def dropna_cols(
@@ -297,20 +298,9 @@ def binarize_by_zero_ref(
 def check_only_n_args(n: int, /, *args, **kwargs):
         if kwargs:
             raise ValueError("Only accepts columns as a positional argument.")
-        args_cpy = list_parser(args)
         
-        if len(args) != n:
-            raise ValueError("Number of args differ from expected number of arguments.")
+        args_cpy = [*args]
+        if args_cpy is None or len(args_cpy)!=n:
+            raise ValueError("Number of args differ from expected number of arguments or None were provided")
 
-        return args_cpy
-
-def list_parser(args: Any):
-        args_cpy = args[0].copy()
-        if isinstance(args_cpy, (bool, int, float, str)):
-            args_cpy = [args_cpy]
-        else:
-            try:
-                args_cpy = list(args_cpy)
-            except TypeError as e:
-                raise ValueError(f"Invalid input type for lst. Expected a list or tuple or Iterable that implements `list` parsing, got {type(args_cpy).__name__}.") from e
         return args_cpy
