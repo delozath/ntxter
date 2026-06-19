@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Mapping
 from dataclasses import fields
 from pathlib import Path
 
@@ -304,3 +304,93 @@ def check_only_n_args(n: int, /, *args, **kwargs):
             raise ValueError("Number of args differ from expected number of arguments or None were provided")
 
         return args_cpy
+
+def flatten_params(
+    data: Mapping[str, Any],
+    sep: str = "__",
+    empty_policy: str = "enabled",  # "enabled" | "skip"
+    max_depth=1
+) -> tuple[dict[str, Any], int]:
+    """
+    Flatten a parameter mapping up to a configurable nesting depth.
+
+    Nested keys are joined with `sep`. Empty mappings can optionally be
+    represented with an `enabled` flag. When a nested mapping is deeper than
+    `max_depth`, it is kept as a mapping under its flattened parent key.
+
+    Parameters
+    ----------
+    data : Mapping[str, Any]
+        Nested parameter mapping to flatten.
+    sep : str, default="__"
+        Separator used to join nested keys.
+    empty_policy : {"enabled", "skip"}, default="enabled"
+        Strategy for empty mappings. When set to `"enabled"`, an empty mapping
+        produces a `"<key>{sep}enabled"` entry with value `True`. When set
+        to `"skip"`, empty mappings are ignored.
+    max_depth : int or None, default=1
+        Maximum mapping depth to expand, counting the top-level mapping as
+        depth `1`. With `max_depth=1`, direct child mappings are flattened
+        and deeper mappings are preserved as values. Use `None` to flatten
+        every nested mapping.
+
+    Returns
+    -------
+    tuple[dict[str, Any], int]
+        A tuple containing the flattened parameter mapping and the maximum
+        nesting depth found in the input. The root level counts as depth `1`.
+
+    Raises
+    ------
+    TypeError
+        If `data` is not a mapping.
+    ValueError
+        If `sep` is empty, `empty_policy` is invalid, or `max_depth` is
+        neither `None` nor a positive integer.
+    """
+    if not isinstance(data, Mapping):
+        raise TypeError("data must be a mapping.")
+
+    if not sep:
+        raise ValueError("sep must be a non-empty string.")
+
+    if empty_policy not in {"enabled", "skip"}:
+        raise ValueError("empty_policy must be 'enabled' or 'skip'")
+
+    if max_depth is not None and (not isinstance(max_depth, int) or max_depth < 1):
+        raise ValueError("max_depth must be None or a positive integer.")
+
+    flat: dict[str, Any] = {}
+    deepest_depth = 1
+
+    def _scan_depth(obj: Mapping[str, Any], depth: int) -> int:
+        nested_depth = depth
+        for value in obj.values():
+            if isinstance(value, Mapping):
+                nested_depth = max(nested_depth, _scan_depth(value, depth + 1))
+        return nested_depth
+
+    def _walk(obj: Mapping[str, Any], prefix: str = "", depth: int = 1) -> None:
+        nonlocal deepest_depth
+        deepest_depth = max(deepest_depth, depth)
+
+        for key, value in obj.items():
+            full_key = f"{prefix}{sep}{key}" if prefix else key
+
+            if isinstance(value, Mapping):
+                next_depth = depth + 1
+                deepest_depth = max(deepest_depth, next_depth)
+
+                if value:
+                    if max_depth is None or depth <= max_depth:
+                        _walk(value, full_key, next_depth)
+                    else:
+                        flat[full_key] = value
+                        deepest_depth = max(deepest_depth, _scan_depth(value, next_depth))
+                elif empty_policy == "enabled":
+                    flat[f"{full_key}{sep}enabled"] = True
+            else:
+                flat[full_key] = value
+
+    _walk(data)
+    return flat, deepest_depth

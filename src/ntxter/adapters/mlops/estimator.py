@@ -24,7 +24,6 @@ class SklearnSingleEstimator(BaseEstimator):
             tt_idx: np.ndarray | list
         ):
 
-        breakpoint()
         X_train, y_train = X[tn_idx], y[tn_idx]
         X_test, y_test = X[tt_idx], y[tt_idx]
 
