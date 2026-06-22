@@ -201,16 +201,55 @@ def colname2index(search: list[str], cols: list[str]) -> list[int]:
     mask = np.array(search)[:, None] == cols
     return (mask @ np.arange(mask.shape[1])).tolist()
 
+def _resolve_existing_path(
+    pth_name: str,
+    kind: str = "file",
+    mode: str = "create",
+) -> Path:
+    pth = Path(pth_name).expanduser().resolve()
 
-def path_check(pth_fname: str, replace=False) -> Path:
-    pth = Path(pth_fname)
-    if not pth.parent.exists():
-        pth.parent.mkdir(parents=True, exist_ok=True)
-    
-    if pth.exists() and not replace:
-        raise FileExistsError(f"File {pth} already exists. To overwrite, set `replace=True`.")
-    
+    if kind not in {"file", "folder"}:
+        raise ValueError("`kind` must be either 'file' or 'folder'.")
+    if mode not in {"raise", "create"}:
+        raise ValueError("`mode` must be one of: 'raise', 'create'.")
+
+    if pth.exists():
+        expected_type = pth.is_dir() if kind == "folder" else pth.is_file()
+        if not expected_type:
+            raise FileExistsError(f"Path {pth} exists but is not a {kind}.")
+        if mode == "raise":
+            raise FileExistsError(
+                f"{kind.capitalize()} {pth} already exists."
+            )
+        return pth
+
+    if kind == "folder":
+        pth.mkdir(parents=True, exist_ok=True)
+        return pth
+
+    pth.parent.mkdir(parents=True, exist_ok=True)
+
     return pth
+
+def folder_exists(
+    pth_fname: str,
+    mode: str = "create",
+) -> Path:
+    return _resolve_existing_path(
+        pth_fname,
+        kind="folder",
+        mode=mode,
+    )
+
+def file_exists(
+    pthfname: str,
+    mode: str = "create",
+) -> Path:
+    return _resolve_existing_path(
+        pthfname,
+        kind="file",
+        mode=mode,
+    )
 
 def yes_no_to_num_map(
         df: pd.DataFrame, 
