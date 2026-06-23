@@ -454,12 +454,15 @@ class KeyLookup:
     def items(self):
         return self._hidden_dict.items()
     
-    def register(self, key: str):
+    def register(self, key: str, metadata=None):
         def wrapper(func):
             if key in self._hidden_dict:
                 raise ValueError(f"Key `{key}` already registered")
             if not callable(func):
                 raise TypeError("Dict.value to registry must be a callable function")
-            self._hidden_dict[key] = func
+            self._hidden_dict[key] = {
+                'func': func,
+                'metadata': 'empty' if metadata is None else metadata
+            }
             return func
         return wrapper

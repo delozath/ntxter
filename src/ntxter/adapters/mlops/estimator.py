@@ -1,3 +1,5 @@
+from curses import meta
+
 from ntxter.ports.estimators.BaseEstimator import BaseEstimator
 
 from typing import override
@@ -14,6 +16,14 @@ class SklearnSingleEstimator(BaseEstimator):
 
     def __init__(self) -> None:
         self.metrics = {}
+        self.available_pred = {
+            'empty': 'predict',
+            'predict': 'predict',
+            'proba': 'predict_proba',
+            'score': 'decision_function',
+            'log_proba': 'predict_log_proba'
+
+        }
 
     @override
     def perform(self,
@@ -31,8 +41,39 @@ class SklearnSingleEstimator(BaseEstimator):
         X_test, y_test = X[tt_idx], y[tt_idx]
 
         model.fit(X_train, y_train)
-        predictions = model.predict(X_test)
         
+        self._check_predict_types(model)
+
         self.metrics = {}
-        for key, func in self.metrics_registry.items():
+        pred_cache = {
+            'empty': None,
+            'predict': None,
+            'proba': None,
+            'score': None,
+            'log_proba': None,
+        }
+        for key, metric in self.metrics_registry.items():
+            metadata = metric['metadata']
+            func = metric['func']
+            predictions = pred_cache[metadata]
+            if predictions is None:
+                predictor_name = self.available_pred[metadata]
+                predictions = getattr(model, predictor_name)(X_test)
+                pred_cache[metadata] = predictions
+
             self.metrics[key] = func(y_test, predictions)
+    
+    def _check_predict_types(self, model):
+        metadata = {
+            v['metadata'] for _, v in self.metrics_registry.items()
+        }
+        if len(metadata)<1:
+            raise AttributeError("Metrics registry must contain at least one valid output format")
+
+        for m in metadata:
+            pred = self.available_pred.get(m, None)
+            if pred is None:
+                raise KeyError(f"Predict type named `{m}` is not admitted, just admit one of the following: {self.available_pred.keys()}")
+            
+            if not hasattr(model, pred):
+                raise AttributeError(f"Model does not have a predictor fuction named `{pred}`")
