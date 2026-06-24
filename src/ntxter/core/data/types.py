@@ -1,9 +1,10 @@
 import warnings
-from typing import Dict, List, Any, Protocol, Type
+from typing import Dict, List, Any, Protocol, Type, override
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict, is_dataclass
+from dataclasses import dataclass, field, fields, asdict, is_dataclass
 
 import pickle
+import pandas as pd
 
 
 import numpy as np
@@ -123,3 +124,42 @@ class BasePipelineStage[P]:
         
         if isinstance(self.estimator, type):
             self.estimator = self.estimator(**self.params)
+
+
+@dataclass
+class TidyDataFrameRetriever[T](ABC):
+    data: T
+    cols: list[str] | str
+    id_vars: list[str] | str
+    query: str = ""
+
+    def __post_init__(self):
+        self._data_type_check()
+
+        if isinstance(self.cols, str):
+            self.cols = [self.cols]
+        
+        if isinstance(self.id_vars, str):
+            self.id_vars = [self.id_vars]
+        
+        if not isinstance(self.cols, list):
+            raise TypeError("cols must be a string or a list of strings.")
+        
+        if not isinstance(self.id_vars, list):
+            raise TypeError("`id_vars` must be a string or a list of strings.")
+        
+        if not isinstance(self.query, str):
+            raise TypeError("query must be a string.")
+
+        self._colunm_names_check()
+
+    @abstractmethod
+    def _data_type_check(self) -> None:
+        raise NotImplementedError("Method `_data_type_check` must be implemented")
+    
+    @abstractmethod
+    def _colunm_names_check(self):
+        inters_cols = set(self.cols).intersection(self.id_vars)
+        if len(inters_cols)>0:
+            raise ValueError("There are common columns between `cols` and `id_vars should be mutually exclusive.")
+    
