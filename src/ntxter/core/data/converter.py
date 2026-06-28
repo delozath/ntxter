@@ -1,3 +1,4 @@
+from typing import Self
 from abc import ABC, abstractmethod
 
 from ntxter.core.data.types import TidyDataFrameRetriever
@@ -6,7 +7,7 @@ class TidyTable[T](ABC):
     df_rtv: TidyDataFrameRetriever
 
     @abstractmethod
-    def compose(self, *args, **kwargs) -> T:
+    def compose(self, *args, **kwargs) -> T | Self:
         raise NotImplementedError("Method `compose` must be implemented")
     
     def __getattr__(self, name):

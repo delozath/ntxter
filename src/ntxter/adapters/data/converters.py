@@ -1,4 +1,4 @@
-from typing import override
+from typing import TypedDict, override
 from dataclasses import dataclass
 import pandas as pd
 
@@ -28,7 +28,7 @@ class PandasTidyTable(TidyTable[pd.DataFrame]):
         self.df_rtv = PandasTidyFrameRetriever(data=data, cols=cols, id_vars=id_vars, query=query)
 
     @classmethod
-    def compose(cls, *args, **kwargs) -> pd.DataFrame:
+    def compose(cls, *args, **kwargs) -> TidyTable[pd.DataFrame]:
         if args:
             inst = cls(*args)
         elif kwargs:
@@ -36,7 +36,7 @@ class PandasTidyTable(TidyTable[pd.DataFrame]):
         else:
             raise ValueError("No arguments or keyword arguments provided. PandasTidyFrameRetriever cannot be instantiated")
         
-        return inst.query_tidy()
+        return inst
     
     def query_tidy(self):
         cols = self.id_vars + self.cols
