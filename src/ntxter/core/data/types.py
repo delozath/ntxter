@@ -127,29 +127,25 @@ class BasePipelineStage[P]:
 
 
 @dataclass
-class TidyDataFrameRetriever[T](ABC):
+class QueryContainer[T](ABC):
     data: T
     cols: list[str] | str
-    id_vars: list[str] | str
-    query: str = ""
+    query: str | None = None
 
     def __post_init__(self):
         self._data_type_check()
 
         if isinstance(self.cols, str):
             self.cols = [self.cols]
-        
-        if isinstance(self.id_vars, str):
-            self.id_vars = [self.id_vars]
-        
+              
         if not isinstance(self.cols, list):
             raise TypeError("cols must be a string or a list of strings.")
         
-        if not isinstance(self.id_vars, list):
-            raise TypeError("`id_vars` must be a string or a list of strings.")
-        
         if not isinstance(self.query, str):
             raise TypeError("query must be a string.")
+        
+        if self.query is None:
+            self.query = ""
 
         self._colunm_names_check()
 
@@ -159,7 +155,4 @@ class TidyDataFrameRetriever[T](ABC):
     
     @abstractmethod
     def _colunm_names_check(self):
-        inters_cols = set(self.cols).intersection(self.id_vars)
-        if len(inters_cols)>0:
-            raise ValueError("There are common columns between `cols` and `id_vars should be mutually exclusive.")
-    
+        raise NotImplementedError ("Method `_colunm_names_check` must be implemented")

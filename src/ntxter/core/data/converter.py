@@ -1,17 +1,18 @@
 from typing import Self
 from abc import ABC, abstractmethod
 
-from ntxter.core.data.types import TidyDataFrameRetriever
+from ntxter.core.data.types import QueryContainer
 
-class TidyTable[T](ABC):
-    df_rtv: TidyDataFrameRetriever
+
+class QueryTable[T](ABC):
+    _container: QueryContainer
 
     @abstractmethod
-    def compose(self, *args, **kwargs) -> T | Self:
+    def exec(self, *args, **kwargs) -> T | Self:
         raise NotImplementedError("Method `compose` must be implemented")
     
     def __getattr__(self, name):
-        if hasattr(self.df_rtv, name):
-            return getattr(self.df_rtv, name)
+        if hasattr(self._container, name):
+            return getattr(self._container, name)
         else:
             raise AttributeError(f"{self.__class__.__name__} has no attribute `{name}` associated to the composition into DataFrameRetriever") 
