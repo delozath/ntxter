@@ -27,13 +27,17 @@ class QueryPandas(QueryTable[pd.DataFrame]):
 
     @classmethod
     def exec(cls, *args, **kwargs) -> pd.DataFrame | Self:
+        returns = kwargs.pop('returns', 'query')
         if len(args)!=0:
-            return cls(*args)
+            if returns=='query':
+                return cls(*args)._query()
+            else:
+                return cls(*args)
         
         data = kwargs.pop('data')
         cols = kwargs.pop('cols')
-        query = kwargs.pop('query')
-        returns = kwargs.pop('returns', None)
+        query = kwargs.pop('query', "")
+
         if (data is None) or (cols is None):
             raise ValueError("Data and columns are required for execution.")
         
@@ -44,31 +48,19 @@ class QueryPandas(QueryTable[pd.DataFrame]):
         if returns == 'instance':
             return inst
         else:
+            return inst._query()
 
+    def _query(self, cols: list | str | None = None, query: str | None = None):
+        f_cols = cols is None
+        f_query = query is None
 
-        return inst
-        breakpoint()
-
-    
-    def query_tidy(self, cols: list | str | None = None, query: str | None = None):
-
-
-        if cols is not None:
-            if isinstance(cols, str):
-                cols = [cols] if cols!="" else ""
-            elif not isinstance(cols, list):
-                raise TypeError("`cols` must be a list, str or None or empty string")
-        else:
-            cols = ""
-        
-        if cols!="":
+        if f_cols and f_query:
+            return self.data.query(self.query)[self.cols]
+        elif f_cols and not f_query:
+            return self.data.query(query)[self.cols]
+        elif not f_cols and f_query:
             return self.data.query(self.query)[cols]
+        elif not f_cols and not f_query:
+            return self.data.query(query)[cols]
         else:
-            return (
-                self.data[cols]
-                    .melt(id_vars=id_vars)
-            )
-        return (
-                self.data.query(self.query)[cols]
-                            .melt(id_vars=id_vars)
-            )
+            raise TypeError("Invalid arguments for `query` or `cols` method.")
