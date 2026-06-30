@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from ntxter.core.data.types import QueryContainer
-from ntxter.core.data.converter import QueryTable
+from ntxter.core.data.converter import QueryTable, TableLevelContainer
 
 
 @dataclass
@@ -64,3 +64,18 @@ class QueryPandas(QueryTable[pd.DataFrame]):
             return self.data.query(query)[cols]
         else:
             raise TypeError("Invalid arguments for `query` or `cols` method.")
+
+
+DeprecationWarning("Quizá no sea necesario")
+class PandasTidyLevelFrame(TableLevelContainer[pd.DataFrame]):
+    def __init__(self, data: pd.DataFrame, n_columns: int, scheme: list):
+        self.data = data
+        self.n_columns = n_columns
+        self.scheme = scheme
+    
+    @override
+    def _check_number_of_columns(self):
+        if (n_cols:=len(self.data.columns)) != self.n_columns:
+            raise ValueError(f"Expected {self.n_columns} but {n_cols} columnes in dataframe were provided")
+        
+        breakpoint()

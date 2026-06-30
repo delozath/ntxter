@@ -1,7 +1,26 @@
-from typing import Self
+from typing import Self, Protocol
 from abc import ABC, abstractmethod
 
+from dataclasses import dataclass
+
 from ntxter.core.data.types import QueryContainer
+
+class Table(Protocol):
+    shape: tuple
+    column: list
+
+
+@dataclass
+class TableLevelContainer[T](ABC):
+    data: T
+    n_columns: int = 2
+ 
+    def __post_init__(self) -> None:
+        self._check_number_of_columns()
+    
+    @abstractmethod
+    def _check_number_of_columns(self):
+        raise NotImplementedError("Method `_check_number_of_columns` must be implemented")
 
 
 class QueryTable[T](ABC):
