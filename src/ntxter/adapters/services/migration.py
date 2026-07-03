@@ -10,9 +10,8 @@ class OrchestratorCSVToLocalPostgreSQL(Orchestrator):
     def __init__(self):
         self.db_conn = PostgreSQLocalConnection()
 
-    def execute(self) -> None:
-        self.db_conn.connect()
-
+    def execute(self, /, **kwargs) -> None:
+        self.db_conn.connect(**kwargs)
 
 __all__ = [
     "migration",

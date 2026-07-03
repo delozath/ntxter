@@ -45,10 +45,12 @@ class ColnamesSanitizer(DataSanitizer[str | list[str], StringSanitization]):
     def char_replace(self, s: str, mapping) -> str:
         return "".join(mapping.get(ch, ch) for ch in s)
     
-    def str_replace(self, s: str, mapping) -> str:
+    def str_replace(self, s: str, mapping=None) -> str:
         if mapping is None:
             return s
-        return self.char_replace(s, mapping)
+        for k, m in mapping.items():
+           s = s.replace(k, m)
+        return s
     
     def to_case(self, string: str) -> str:
         if self.config.force_case == "lower":

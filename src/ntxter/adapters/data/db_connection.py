@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
+from sqlalchemy import text as pgre_text
 
 import sqlite3
 import pandas as pd
@@ -62,7 +63,8 @@ class SQLiteConnection(BaseDatabase):
 
 
 class PostgreSQLocalConnection(BaseDatabase):
-    def connect(self) -> None:
+    def connect(self, /, **kwargs) -> None:
+        db_prefix = kwargs.pop('db_prefix', 'DB')
         load_dotenv()
         try:
             from sqlalchemy import create_engine
@@ -73,11 +75,11 @@ class PostgreSQLocalConnection(BaseDatabase):
         try:
             url = URL.create(
                 "postgresql+psycopg",
-                host=os.getenv("DB_HOST", "localhost"),
-                port=int(os.getenv("DB_PORT", "5432")),
-                database=os.getenv("POSTGRES_DB"),
-                username=os.getenv("POSTGRES_USER"),
-                password=os.getenv("POSTGRES_PASSWORD")
+                host=os.getenv(f"{db_prefix}_HOST", "localhost"),
+                port=int(os.getenv(f"{db_prefix}_PORT", "5432")),
+                database=os.getenv(f"{db_prefix}_DB"),
+                username=os.getenv(f"{db_prefix}_USER"),
+                password=os.getenv(f"{db_prefix}_PASSWORD")
             )
 
             self._engine = create_engine(url, pool_pre_ping=True)
@@ -93,6 +95,7 @@ class PostgreSQLocalConnection(BaseDatabase):
         self._conn.close()
         self._engine.dispose()
 
+    ##----------------- Under revision ----------------------##
     def execute_query(self, table, query: str, fields: tuple | dict = ()) -> list | pd.DataFrame:
         statement, params = self._prepare_query(query, fields)
         result = self._conn.execute(statement, params)
@@ -102,11 +105,24 @@ class PostgreSQLocalConnection(BaseDatabase):
 
         return pd.DataFrame(result.fetchall(), columns=result.keys())
 
+    def get_table_names(self):
+        statement = pgre_text(
+            """
+            SELECT schemaname, tablename 
+            FROM pg_catalog.pg_tables 
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema');
+            """
+        )
+        result = self._conn.execute(
+            statement
+        )
+        breakpoint()
+        return 1 
+
     def get_columns(self, table: str) -> list:
-        from sqlalchemy import text
 
         schema, table_name = self._split_table_name(table)
-        statement = text(
+        statement = pgre_text(
             """
             SELECT column_name
             FROM information_schema.columns
