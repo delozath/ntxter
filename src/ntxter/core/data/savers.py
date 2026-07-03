@@ -7,7 +7,7 @@ from ntxter.core.utils import file_exists
 class DataSaver[T](ABC):
     data: T | dict[str, T]
     def __init__(self, pthfname: str, replace: bool=False) -> None:
-        rep = 'replace' if replace else 'create'
+        rep = 'create' if replace else 'raise'
         self.pth_fname = file_exists(pthfname, mode=rep)
       
     @abstractmethod
