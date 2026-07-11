@@ -59,11 +59,18 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
         index = kwargs.get('index', True)
         self.data.to_csv(self.pth_fname, index=index)
     
-    def _write_parquet(self):
-        raise NotImplementedError("Parquet saver is not implemented yet.")
-
-
-class MarkdownSafe(DataSaver[str]):
+    def _write_parquet(self, /, **kwargs):
+        params = {
+            'engine': "pyarrow", 
+            'compression': "snappy",
+            'partition_cols': kwargs.get('partition_cols', None)
+        }
+        self.data.to_parquet(
+            self.pth_fname,
+            **params
+        )
+        
+class StringStreamSafe(DataSaver[str]):
     content: str
 
     def __init__(self, pth_name: str, replace: bool=False) -> None:
