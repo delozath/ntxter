@@ -12,3 +12,9 @@ class UnknownDataTypeError(Exception):
         self.dtype = dtype
         self.message = f"Unsupported data type: `{dtype}`."
         super().__init__(self.message)
+
+class HashingError(Exception):
+    def __init__(self, message=None) -> None:
+        extra_info = "" if message is None else f": {message}"
+        self.message = f"Unexpected error while hashing{extra_info}"
+        super().__init__(self.message)

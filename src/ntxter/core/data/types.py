@@ -1,13 +1,15 @@
 import warnings
-from typing import Dict, List, Any, Protocol, Type
+from typing import Dict, List, Any, Protocol, Type, override
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict, is_dataclass
+from dataclasses import dataclass, field, fields, asdict, is_dataclass
 
 import pickle
+import pandas as pd
 
 
 import numpy as np
 import pandas as pd
+import polars as pl
 from pathlib import Path
 
 
@@ -83,12 +85,12 @@ class BundleMultSplit(BundleTrainTest):
 
 
 class EstimatorProtocol(Protocol):
-    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series) -> Any: ...
-    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray | pd.Series | List: ...
+    def fit(self, X: np.ndarray | pd.DataFrame | pl.DataFrame, y: np.ndarray | pd.Series) -> Any: ...
+    def predict(self, X: np.ndarray | pd.DataFrame | pl.DataFrame) -> np.ndarray | pd.Series | List: ...
 
 class PipelineProtocol(Protocol):
-    def fit(self, X: np.ndarray | pd.DataFrame, y: np.ndarray | pd.Series) -> Any: ...
-    def predict(self, X: np.ndarray | pd.DataFrame) -> np.ndarray | pd.Series | List: ...
+    def fit(self, X: np.ndarray | pd.DataFrame | pl.DataFrame, y: np.ndarray | pd.Series) -> Any: ...
+    def predict(self, X: np.ndarray | pd.DataFrame | pl.DataFrame) -> np.ndarray | pd.Series | List: ...
     def transform(self, X: np.ndarray | pd.DataFrame) -> np.ndarray | pd.DataFrame: ...
 
 @dataclass
@@ -122,3 +124,35 @@ class BasePipelineStage[P]:
         
         if isinstance(self.estimator, type):
             self.estimator = self.estimator(**self.params)
+
+
+@dataclass
+class QueryContainer[T](ABC):
+    data: T
+    cols: list[str] | str
+    query: str | None = None
+
+    def __post_init__(self):
+        self._data_type_check()
+
+        if isinstance(self.cols, str):
+            self.cols = [self.cols]
+              
+        if not isinstance(self.cols, list):
+            raise TypeError("cols must be a string or a list of strings.")
+        
+        if not isinstance(self.query, str):
+            raise TypeError("query must be a string.")
+        
+        if self.query is None:
+            self.query = ""
+
+        self._colunm_names_check()
+
+    @abstractmethod
+    def _data_type_check(self) -> None:
+        raise NotImplementedError("Method `_data_type_check` must be implemented")
+    
+    @abstractmethod
+    def _colunm_names_check(self):
+        raise NotImplementedError ("Method `_colunm_names_check` must be implemented")

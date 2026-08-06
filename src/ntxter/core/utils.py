@@ -1,5 +1,9 @@
+from typing import Any, Mapping
 from dataclasses import fields
 from pathlib import Path
+
+from collections.abc import Iterable
+
 
 import numpy as np
 import pandas as pd
@@ -74,17 +78,15 @@ def _check_list_str_type(
     ValueError
         If input is not a string or list of strings.
     """
-    col_type = type(cols).__name__
-    match col_type:
-        case 'str':
-            cols = [cols]
-        case 'list':
-            pass
-        case _:
-            raise ValueError("cols must be a list of column names or lists of column names.")
-    return cols
+    
+    if isinstance(cols, Iterable):
+        return cols if isinstance(cols, list) else list(cols)
+    if isinstance(cols, (str, bool, int, float)):
+        return [cols]
+    else:
+        raise ValueError("cols must be a list of column names or lists of column names.")
 
-def _check_list_cols(df, cols: list[str] | str):
+def check_list_cols(df, cols: list[str] | str):
     """
     Check that all columns in cols exist in the DataFrame.
 
@@ -108,7 +110,7 @@ def _check_list_cols(df, cols: list[str] | str):
     cols = _check_list_str_type(cols)
     diff = set(cols) - set(df.columns)
     if len(diff) != 0:
-        raise ValueError("There are some columns in `cols` that are not found in DataFrame.")
+        raise ValueError(f"There are some columns in `{list(diff)}` that are not found in DataFrame.")
     return cols
 
 def dropna_cols(
@@ -130,7 +132,7 @@ def dropna_cols(
     pandas.DataFrame
         DataFrame with rows containing no NaN values in the specified columns removed.
     """
-    cols = _check_list_cols(df, cols)
+    cols = check_list_cols(df, cols)
 
     return df[cols].dropna().copy()
 
@@ -160,7 +162,7 @@ def split_ft_cols(
         If no remaining columns are left after selecting feature columns.
     """
 
-    col_fts = _check_list_cols(df, fts)
+    col_fts = check_list_cols(df, fts)
     col_remain = list(set(df.columns) - set(col_fts))
 
     if len(col_remain) == 0:
@@ -199,13 +201,235 @@ def colname2index(search: list[str], cols: list[str]) -> list[int]:
     mask = np.array(search)[:, None] == cols
     return (mask @ np.arange(mask.shape[1])).tolist()
 
+def _resolve_existing_path(
+    pth_name: str,
+    kind: str = "file",
+    mode: str = "create",
+) -> Path:
+    pth = Path(pth_name).expanduser().resolve()
 
-def path_check(pth_fname: str, replace=False) -> Path:
-    pth = Path(pth_fname)
-    if not pth.parent.exists():
-        pth.parent.mkdir(parents=True, exist_ok=True)
-    
-    if pth.exists() and not replace:
-        raise FileExistsError(f"File {pth} already exists. To overwrite, set `replace=True`.")
-    
+    if kind not in {"file", "folder"}:
+        raise ValueError("`kind` must be either 'file' or 'folder'.")
+    if mode not in {"raise", "create"}:
+        raise ValueError("`mode` must be one of: 'raise', 'create'.")
+
+    if pth.exists():
+        expected_type = pth.is_dir() if kind == "folder" else pth.is_file()
+        if not expected_type:
+            raise FileExistsError(f"Path {pth} exists but is not a {kind}.")
+        if mode == "raise":
+            raise FileExistsError(
+                f"{kind.capitalize()} {pth} already exists."
+            )
+        return pth
+
+    if kind == "folder":
+        pth.mkdir(parents=True, exist_ok=True)
+        return pth
+
+    pth.parent.mkdir(parents=True, exist_ok=True)
+
     return pth
+
+def folder_exists(
+    pth_fname: str,
+    mode: str = "create",
+) -> Path:
+    return _resolve_existing_path(
+        pth_fname,
+        kind="folder",
+        mode=mode,
+    )
+
+def file_exists(
+    pthfname: str,
+    mode: str = "create",
+) -> Path:
+    return _resolve_existing_path(
+        pthfname,
+        kind="file",
+        mode=mode,
+    )
+
+def yes_no_to_num_map(
+        df: pd.DataFrame, 
+        col: str | list[str],
+        yes_val: int = 1,
+        no_val: int = 0,
+        yes_opts: str | list[str] = 'default', 
+        no_opts: str | list[str] = 'default'
+    ) -> pd.DataFrame:
+    """Replace values in specified columns with 'Yes' and 'No' based on provided mappings.
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Input DataFrame.
+    col : str or list of str
+        Column name or list of column names to replace values in.
+    yes_opts : str or list of str, optional       
+        Value(s) to replace with 'Yes'. If 'default', uses the default mapping.
+    no_opts : str or list of str, optional
+        Value(s) to replace with 'No'. If 'default', uses the default mapping.
+    
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with replaced values in the specified columns.
+    
+    Raises
+    -------
+    ValueError
+        If any specified column does not exist in the DataFrame.
+    """
+    cols = [col] if isinstance(col, str) else list(col)
+
+    missing = [c for c in cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Column(s) not found in DataFrame: {missing}")
+    
+    if yes_opts=='default':
+        yes_opts = ['yes', 'y', '1', 'si', 'sí', 's', 'true', 'verdadero', 'verdadera', 'positivo', 'positiva']
+    
+    if no_opts=='default':
+        no_opts = ['no', 'n', '0', 'false', 'f', 'falso', 'falsa', 'negativo', 'negativa']
+
+    replace = {i: yes_val for i in yes_opts} | {i: no_val for i in no_opts}
+    for s in df[cols]:
+        print(f"processing {s}")
+        s = (df[s]
+             .str.lower()
+             .str.strip()
+             .str.replace(' ', '')
+             .replace(replace)
+            )
+
+        if s.nunique(dropna=True) > 2:
+            raise ValueError(
+                f"Column '{s.name}' has more than 2 unique non-null values after replacement; "
+                f"not expected for a binary column"
+            )
+
+        df = df.assign(
+            **{s.name: s.astype(float) if s.isnull().any() else s.astype(int)}
+         )
+    
+    return df
+
+def binarize_by_zero_ref(
+        df: pd.DataFrame,
+        cols_zero_ref: dict[str, str],
+        zero_val: int = 0,
+        others: int = 1
+    ):
+    for col, zero_ref in cols_zero_ref.items():
+        if col not in df.columns:
+            raise ValueError(f"Column '{col}' not found in DataFrame.")
+        
+        values = zero_ref[zero_val]
+        df = df.assign(
+            **{col: df[col].replace({v:zero_val for v in values})}
+        )
+        df.loc[df[col]!=zero_val, col] = others
+        df[col] = df[col].astype(float) if df[col].isnull().any() else df[col].astype(int)
+    
+    return df
+
+def check_only_n_args(n: int, /, *args, **kwargs):
+        if kwargs:
+            raise ValueError("Only accepts columns as a positional argument.")
+        
+        args_cpy = [*args]
+        if args_cpy is None or len(args_cpy)!=n:
+            raise ValueError("Number of args differ from expected number of arguments or None were provided")
+
+        return args_cpy
+
+def flatten_params(
+    data: Mapping[str, Any],
+    sep: str = "__",
+    empty_policy: str = "enabled",  # "enabled" | "skip"
+    max_depth=1
+) -> tuple[dict[str, Any], int]:
+    """
+    Flatten a parameter mapping up to a configurable nesting depth.
+
+    Nested keys are joined with `sep`. Empty mappings can optionally be
+    represented with an `enabled` flag. When a nested mapping is deeper than
+    `max_depth`, it is kept as a mapping under its flattened parent key.
+
+    Parameters
+    ----------
+    data : Mapping[str, Any]
+        Nested parameter mapping to flatten.
+    sep : str, default="__"
+        Separator used to join nested keys.
+    empty_policy : {"enabled", "skip"}, default="enabled"
+        Strategy for empty mappings. When set to `"enabled"`, an empty mapping
+        produces a `"<key>{sep}enabled"` entry with value `True`. When set
+        to `"skip"`, empty mappings are ignored.
+    max_depth : int or None, default=1
+        Maximum mapping depth to expand, counting the top-level mapping as
+        depth `1`. With `max_depth=1`, direct child mappings are flattened
+        and deeper mappings are preserved as values. Use `None` to flatten
+        every nested mapping.
+
+    Returns
+    -------
+    tuple[dict[str, Any], int]
+        A tuple containing the flattened parameter mapping and the maximum
+        nesting depth found in the input. The root level counts as depth `1`.
+
+    Raises
+    ------
+    TypeError
+        If `data` is not a mapping.
+    ValueError
+        If `sep` is empty, `empty_policy` is invalid, or `max_depth` is
+        neither `None` nor a positive integer.
+    """
+    if not isinstance(data, Mapping):
+        raise TypeError("data must be a mapping.")
+
+    if not sep:
+        raise ValueError("sep must be a non-empty string.")
+
+    if empty_policy not in {"enabled", "skip"}:
+        raise ValueError("empty_policy must be 'enabled' or 'skip'")
+
+    if max_depth is not None and (not isinstance(max_depth, int) or max_depth < 1):
+        raise ValueError("max_depth must be None or a positive integer.")
+
+    flat: dict[str, Any] = {}
+    deepest_depth = 1
+
+    def _scan_depth(obj: Mapping[str, Any], depth: int) -> int:
+        nested_depth = depth
+        for value in obj.values():
+            if isinstance(value, Mapping):
+                nested_depth = max(nested_depth, _scan_depth(value, depth + 1))
+        return nested_depth
+
+    def _walk(obj: Mapping[str, Any], prefix: str = "", depth: int = 1) -> None:
+        nonlocal deepest_depth
+        deepest_depth = max(deepest_depth, depth)
+
+        for key, value in obj.items():
+            full_key = f"{prefix}{sep}{key}" if prefix else key
+
+            if isinstance(value, Mapping):
+                next_depth = depth + 1
+                deepest_depth = max(deepest_depth, next_depth)
+
+                if value:
+                    if max_depth is None or depth <= max_depth:
+                        _walk(value, full_key, next_depth)
+                    else:
+                        flat[full_key] = value
+                        deepest_depth = max(deepest_depth, _scan_depth(value, next_depth))
+                elif empty_policy == "enabled":
+                    flat[f"{full_key}{sep}enabled"] = True
+            else:
+                flat[full_key] = value
+
+    _walk(data)
+    return flat, deepest_depth

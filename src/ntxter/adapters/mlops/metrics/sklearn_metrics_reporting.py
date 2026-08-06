@@ -1,3 +1,4 @@
+import stat
 from typing import Dict, Any, override
 
 
@@ -57,8 +58,6 @@ class SklearnMetricsReporting(BaseReportMetrics[float]):
     
     def build_table_medians(self, df_metrics: pd.DataFrame, groupby: list[str] | str) -> pd.DataFrame:
         cols = self.metrics + [groupby] if isinstance(groupby, str) else self.metrics + groupby
-        table = df_metrics[cols].melt(id_vars=groupby)
-        table.pivot_table(index=groupby, columns='variable', aggfunc=self._median_iqr)
         table = (
             df_metrics[cols]
                 .melt(id_vars=groupby)
@@ -70,7 +69,23 @@ class SklearnMetricsReporting(BaseReportMetrics[float]):
         )
         return table
     
-    def _median_iqr(self, series: pd.Series, dec: int = 4) -> str:
+    @staticmethod
+    def generate_table_medians(df_metrics: pd.DataFrame, metrics: list[str], groupby: list[str] | str) -> pd.DataFrame:
+        cols = metrics + [groupby] if isinstance(groupby, str) else metrics + groupby
+        
+        table = (
+            df_metrics[cols]
+                .melt(id_vars=groupby)
+                .pivot_table(
+                    index=groupby,
+                    columns='variable',
+                    aggfunc=SklearnMetricsReporting._median_iqr
+                 )
+        )
+        return table
+    
+    @staticmethod
+    def _median_iqr(series: pd.Series, dec: int = 4) -> str:
         median = series.median()
         q1 = series.quantile(0.25)
         q3 = series.quantile(0.75)
