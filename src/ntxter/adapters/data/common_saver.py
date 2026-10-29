@@ -90,3 +90,38 @@ class StringStreamSafe(DataSaver[str]):
 
         with open(instance.pth_fname, 'w') as f:
             f.write(instance.content)
+
+from typing import Self
+
+import yaml
+
+
+class YamlStreamSafe(DataSaver[dict]):
+    content: dict
+
+    def prepare(self, data: dict, *args, **kwargs) -> Self:
+        if not isinstance(data, dict):
+            raise TypeError("Data must be a dictionary.")
+
+        self.content = data
+        return self
+
+    @classmethod
+    def save(
+        cls,
+        data: dict,
+        pth_name: str,
+        replace: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        instance = cls(pth_name, replace)
+        instance.prepare(data)
+
+        with open(instance.pth_fname, "w", encoding="utf-8") as f:
+            yaml.safe_dump(
+                instance.content,
+                f,
+                allow_unicode=True,
+                sort_keys=False,
+            )
