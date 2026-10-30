@@ -18,3 +18,8 @@ class HashingError(Exception):
         extra_info = "" if message is None else f": {message}"
         self.message = f"Unexpected error while hashing{extra_info}"
         super().__init__(self.message)
+
+class ProfileError(Exception):
+    """Raised when data does not satisfy its profile contract."""
+    def __init__(self, message: str):
+        super().__init__(message)

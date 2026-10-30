@@ -18,7 +18,8 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
             'xlsx': self._write_excel,
             'csv' : self._write_csv,
             'md': self._write_md,
-            'parquet': self._write_parquet
+            'parquet': self._write_parquet,
+            'feather': self._write_feather
         }
     
     @classmethod
@@ -62,13 +63,16 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
     def _write_parquet(self, /, **kwargs):
         params = {
             'engine': "pyarrow", 
-            'compression': "snappy",
+            'compression': "zstd",
             'partition_cols': kwargs.get('partition_cols', None)
         }
         self.data.to_parquet(
             self.pth_fname,
             **params
         )
+
+    def _write_feather(self, **kwargs):
+        self.data.to_feather(self.pth_fname)
         
 class StringStreamSafe(DataSaver[str]):
     content: str

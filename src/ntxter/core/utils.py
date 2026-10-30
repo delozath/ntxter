@@ -1,6 +1,7 @@
 from typing import Any, Mapping
 from dataclasses import fields
 from pathlib import Path
+import hashlib
 
 from collections.abc import Iterable
 
@@ -250,6 +251,13 @@ def file_exists(
         kind="file",
         mode=mode,
     )
+
+def file_hash(pthfname: str | Path) -> str:
+    """Return the 128-bit BLAKE2b hex digest of a file, read in chunks."""
+    with open(pthfname, 'rb') as file:
+        return hashlib.file_digest(
+            file, lambda: hashlib.blake2b(digest_size=16)
+        ).hexdigest()
 
 def yes_no_to_num_map(
         df: pd.DataFrame, 
