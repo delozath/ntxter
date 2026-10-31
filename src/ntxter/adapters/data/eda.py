@@ -331,9 +331,9 @@ class DataDescriber:
     """Describe approved observations without inferring or validating a schema.
 
     ``run`` returns four DataFrames: ``variables`` (availability and types),
-    ``numeric`` (central tendency and dispersion), ``categories`` (counts and
-    row-level proportions), and ``information`` (categorical heterogeneity and
-    descriptive signals). Tables other than ``categories`` are indexed by
+    ``numeric`` (central tendency, dispersion and signals), ``categories`` (counts and
+    row-level proportions), and ``information`` (heterogeneity and signals of
+    categorical columns only). Tables other than ``categories`` are indexed by
     column name. No rows or variables are removed from the input.
 
     Signals describe this sample; entropy and dispersion alone cannot establish
@@ -344,11 +344,11 @@ class DataDescriber:
 
     _VARIABLE_COLUMNS = (
         'column', 'dtype', 'kind', 'n_total', 'n_observed', 'n_missing',
-        'missing_ratio', 'n_distinct',
+        'missing_ratio', 'n_distinct', 'nullable',
     )
     _NUMERIC_COLUMNS = (
         'column', 'n_finite', 'n_nonfinite', 'mean', 'median', 'std', 'var',
-        'min', 'q1', 'q3', 'max', 'iqr',
+        'min', 'q1', 'q3', 'max', 'iqr', 'signals',
     )
     _CATEGORY_COLUMNS = (
         'column', 'category', 'count', 'proportion_observed', 'proportion_total',
@@ -388,6 +388,7 @@ class DataDescriber:
         proportions; interpreting them as prevalence requires an appropriate
         observation unit and denominator.
 
+        Entropy, Gini, KL and dominant ratio apply only to categorical columns.
         Entropy (natural logarithms), Gini impurity and dominant ratio use only
         non-null observations. Zero probabilities contribute zero. For K levels,
         normalized entropy is H/log(K), defined as zero when K=1 and observed.
@@ -467,13 +468,15 @@ class DataDescriber:
                 'column': name, 'dtype': str(series.dtype), 'kind': kind,
                 'n_total': n_total, 'n_observed': n_observed,
                 'n_missing': n_missing, 'missing_ratio': missing_ratio,
-                'n_distinct': n_distinct,
+                'n_distinct': n_distinct, 'nullable': column.nullable,
             })
             signals = []
             if not n_observed:
                 signals.append('no_observations')
             elif n_distinct == 1 and kind != 'numeric':
                 signals.append('constant')
+            if n_missing and not column.nullable:
+                signals.append('unexpected_missing')
             if max_missing_ratio is not None and missing_ratio > max_missing_ratio:
                 signals.append('high_missing_ratio')
 
@@ -530,7 +533,10 @@ class DataDescriber:
                         signals.append('unobserved_categories')
             if n_observed and n_usable < min_observations:
                 signals.append('insufficient_observations')
-            information.append({'column': name, **metrics, 'signals': tuple(signals)})
+            if kind == 'numeric':
+                numeric[-1]['signals'] = tuple(signals)
+            elif kind == 'categorical':
+                information.append({'column': name, **metrics, 'signals': tuple(signals)})
 
         return {
             'variables': pd.DataFrame(variables, columns=self._VARIABLE_COLUMNS).set_index('column'),
@@ -578,7 +584,7 @@ class DataDescriber:
         finite = observed.loc[np.isfinite(observed)]
         summary = {
             'n_finite': len(finite), 'n_nonfinite': len(observed) - len(finite),
-            **dict.fromkeys(DataDescriber._NUMERIC_COLUMNS[3:], np.nan),
+            **dict.fromkeys(DataDescriber._NUMERIC_COLUMNS[3:-1], np.nan),
         }
         if not finite.empty:
             quartiles = finite.quantile([0.25, 0.75], interpolation='linear')

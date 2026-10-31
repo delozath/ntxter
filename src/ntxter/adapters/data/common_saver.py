@@ -1,8 +1,12 @@
+from collections.abc import Mapping
+from os import PathLike
+from pathlib import Path
 from typing import Self
 import pandas as pd
 
 
 from ntxter.core.data.savers import DataSaver
+from ntxter.core.utils import file_exists
 
 
 class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
@@ -33,8 +37,11 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
         else:
             raise NotImplementedError(f"Save manager for `{ext}` is not yet implemented")
 
-    def _write_md(self):
-        self.data.to_markdown(self.pth_fname)
+    def _write_md(self, **kwargs):
+        self.data.to_markdown(
+            self.pth_fname,
+            index=kwargs.get('index', True),
+        )
 
     def _write_spss(self):
         raise NotImplementedError("SPSS saver is not implemented yet.")
@@ -73,7 +80,138 @@ class PandasFrameSafeFactory(DataSaver[pd.DataFrame]):
 
     def _write_feather(self, **kwargs):
         self.data.to_feather(self.pth_fname)
-        
+
+
+class PandasFramesSafeFactory:
+    """Save a named collection of DataFrames as one workbook or many files.
+
+    A single path must end in ``.xlsx`` and receives one worksheet per mapping
+    entry. A mapping of names to paths writes each DataFrame independently via
+    :class:`PandasFrameSafeFactory`. In multiple-file mode, destination keys
+    must exactly match the data keys.
+
+    All destinations are validated before the first file is written. This
+    prevents configuration errors, path collisions, or an existing protected
+    file from leaving a partially written collection.
+    """
+
+    _SINGLE_EXTENSION = 'xlsx'
+    _MULTIPLE_EXTENSIONS = frozenset({
+        'csv', 'feather', 'md', 'parquet', 'xlsx',
+    })
+
+    @classmethod
+    def save(
+        cls,
+        data: Mapping[str, pd.DataFrame],
+        pth_names: str | PathLike[str] | Mapping[str, str | PathLike[str]],
+        replace: bool = False,
+        *args,
+        **kwargs,
+    ) -> dict[str, Path]:
+        """Persist ``data`` and return the resolved paths that were written."""
+        frames = cls._prepare_frames(data)
+        multiple = isinstance(pth_names, Mapping)
+        destinations = cls._prepare_destinations(frames, pth_names)
+        cls._preflight(destinations, replace=replace)
+
+        # Collection entries often use meaningful indexes. Keep them by default
+        # in human-readable formats so a round-trip does not discard identity.
+        kwargs.setdefault('index', True)
+        if multiple:
+            for name, path in destinations.items():
+                PandasFrameSafeFactory.save(
+                    frames[name], path, replace=True, **kwargs
+                )
+        else:
+            PandasFrameSafeFactory.save(
+                frames, destinations['all'], replace=True, **kwargs
+            )
+
+        return destinations
+
+    @staticmethod
+    def _prepare_frames(
+        data: Mapping[str, pd.DataFrame],
+    ) -> dict[str, pd.DataFrame]:
+        if not isinstance(data, Mapping) or not data:
+            raise TypeError('data must be a non-empty mapping of DataFrames.')
+        if not all(isinstance(name, str) and name for name in data):
+            raise TypeError('DataFrame names must be non-empty strings.')
+        invalid = [
+            name for name, frame in data.items()
+            if not isinstance(frame, pd.DataFrame)
+        ]
+        if invalid:
+            raise TypeError(f'Values for {invalid} are not pandas DataFrames.')
+        return dict(data)
+
+    @classmethod
+    def _prepare_destinations(
+        cls,
+        frames: Mapping[str, pd.DataFrame],
+        pth_names: str | PathLike[str] | Mapping[str, str | PathLike[str]],
+    ) -> dict[str, Path]:
+        if isinstance(pth_names, Mapping):
+            missing = set(frames) - set(pth_names)
+            extra = set(pth_names) - set(frames)
+            if missing or extra:
+                raise ValueError(
+                    'Destination keys must match data keys exactly; '
+                    f'missing={sorted(missing)}, extra={sorted(extra)}.'
+                )
+            destinations = {
+                name: cls._path(path, name=name)
+                for name, path in pth_names.items()
+            }
+            unsupported = {
+                name: path.suffix.lower()
+                for name, path in destinations.items()
+                if path.suffix[1:].lower() not in cls._MULTIPLE_EXTENSIONS
+            }
+            if unsupported:
+                raise ValueError(
+                    f'Unsupported multiple-file destinations: {unsupported}.'
+                )
+        else:
+            path = cls._path(pth_names, name='all')
+            if path.suffix[1:].lower() != cls._SINGLE_EXTENSION:
+                raise ValueError('A single collection file must use .xlsx.')
+            cls._validate_sheet_names(frames)
+            destinations = {'all': path}
+
+        if len(set(destinations.values())) != len(destinations):
+            raise ValueError('Every DataFrame must have a distinct destination path.')
+        return destinations
+
+    @staticmethod
+    def _path(path: str | PathLike[str], *, name: str) -> Path:
+        if not isinstance(path, (str, PathLike)):
+            raise TypeError(f'Destination for {name!r} must be path-like.')
+        return Path(path).expanduser().resolve()
+
+    @staticmethod
+    def _validate_sheet_names(frames: Mapping[str, pd.DataFrame]) -> None:
+        invalid_characters = set('[]:*?/\\')
+        invalid = [
+            name for name in frames
+            if len(name) > 31 or invalid_characters.intersection(name)
+        ]
+        if invalid:
+            raise ValueError(f'Invalid Excel worksheet names: {invalid}.')
+        folded = [name.casefold() for name in frames]
+        if len(set(folded)) != len(folded):
+            raise ValueError('Excel worksheet names must be unique ignoring case.')
+
+    @staticmethod
+    def _preflight(destinations: Mapping[str, Path], *, replace: bool) -> None:
+        mode = 'create' if replace else 'raise'
+        for path in destinations.values():
+            # This creates only missing parent directories; files are written
+            # after every destination has passed the same check.
+            file_exists(path, mode=mode)
+
+
 class StringStreamSafe(DataSaver[str]):
     content: str
 
@@ -94,8 +232,6 @@ class StringStreamSafe(DataSaver[str]):
 
         with open(instance.pth_fname, 'w') as f:
             f.write(instance.content)
-
-from typing import Self
 
 import yaml
 

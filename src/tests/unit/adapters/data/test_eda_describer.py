@@ -339,3 +339,4 @@ def test_existing_contract_and_validator_still_work_independently():
     assert failure["conflicting_columns"] == ["value"]
     assert failure["conflicting_row_positions"] == [1]
     assert_frame_equal(failure["conflicting_rows"], invalid.iloc[[1]])
+
