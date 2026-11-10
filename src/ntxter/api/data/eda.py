@@ -6,6 +6,7 @@ from ntxter.adapters.data.feature_eda import (
     ArfsAssociationMethods,
     PandasFeatureAnalyzer,
     PandasRedundancyResult,
+    PandasRedundancyResults,
     PandasRedundancySelector,
     PandasSelectionReport,
 )
@@ -22,6 +23,7 @@ __all__ = [
     "PandasFeatureExplorationPipeline",
     "PandasFeatureExplorationResult",
     "PandasRedundancyResult",
+    "PandasRedundancyResults",
     "PandasRedundancySelector",
     "PandasSelectionReport",
 ]

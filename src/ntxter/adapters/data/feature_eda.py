@@ -1,8 +1,9 @@
 """Pandas feature exploration and redundancy selection."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
+from numbers import Real
 
 from arfs.association import (
     correlation_ratio,
@@ -30,11 +31,14 @@ class BasePandasFeatureAnalyzer(BaseRunnableClass):
         columns=None,
         *,
         numeric_only: bool = False,
+        min_columns: int = 2,
     ) -> pd.DataFrame:
         if not isinstance(df, pd.DataFrame):
             raise TypeError("df must be a pandas DataFrame.")
         if not df.columns.is_unique:
             raise ValueError("df column names must be unique.")
+        if not isinstance(min_columns, int) or min_columns < 0:
+            raise ValueError("min_columns must be a non-negative integer.")
 
         if columns is None:
             columns = (
@@ -42,13 +46,13 @@ class BasePandasFeatureAnalyzer(BaseRunnableClass):
                 if numeric_only
                 else df.columns.tolist()
             )
-        elif not isinstance(columns, list) or len(columns) < 2:
-            raise ValueError("columns must be a list with at least two column names.")
         else:
-            columns = utils.check_list_cols(df, columns)
+            columns = self._normalize_columns(df, columns)
 
-        if len(columns) < 2:
-            raise ValueError("At least two columns are required for analysis.")
+        if len(columns) < min_columns:
+            raise ValueError(
+                f"At least {min_columns} column(s) are required for analysis."
+            )
         if len(columns) != len(set(columns)):
             raise ValueError("columns must not contain duplicates.")
 
@@ -123,6 +127,101 @@ class PandasRedundancyResult:
     report: PandasSelectionReport
 
 
+@dataclass(slots=True)
+class PandasRedundancyResults:
+    """The three independent redundancy analyses over the feature set.
+
+    ``numeric`` contains non-categorical numeric columns, ``categorical``
+    contains nominal columns (including numeric values stored as categories),
+    and ``mixed`` contains both groups when both are present.  Each analysis
+    selects and discards columns independently; this object deliberately does
+    not collapse those decisions into one global selection.
+    """
+
+    numeric: PandasRedundancyResult
+    categorical: PandasRedundancyResult
+    mixed: PandasRedundancyResult
+    feature_columns: tuple[str, ...]
+    excluded_columns: tuple[str, ...]
+
+    @property
+    def numeric_categorical(self) -> PandasRedundancyResult:
+        """Alias for the pure categorical analysis.
+
+        The categorical group includes categorical columns whose values are
+        numeric as well as text/object categories.  ARFS treats both as
+        nominal variables for this analysis.
+        """
+
+        return self.categorical
+
+    @property
+    def outcome_columns(self) -> tuple[str, ...]:
+        """Alias that makes the exclusion contract explicit to callers."""
+
+        return self.excluded_columns
+
+    @property
+    def primary(self) -> PandasRedundancyResult:
+        """Compatibility result equivalent to the former single analysis."""
+
+        for analysis in (self.mixed, self.numeric, self.categorical):
+            if analysis.selected_columns or not analysis.association_matrix.empty:
+                return analysis
+        return self.mixed
+
+    @property
+    def data(self) -> pd.DataFrame:
+        return self.primary.data
+
+    @property
+    def association_matrix(self) -> pd.DataFrame:
+        return self.primary.association_matrix
+
+    @property
+    def selected_columns(self) -> tuple[str, ...]:
+        return self.primary.selected_columns
+
+    @property
+    def redundant_columns(self) -> tuple[str, ...]:
+        return self.primary.redundant_columns
+
+    @property
+    def report(self) -> PandasSelectionReport:
+        return self.primary.report
+
+    @property
+    def numeric_analysis(self) -> PandasRedundancyResult:
+        return self.numeric
+
+    @property
+    def categorical_analysis(self) -> PandasRedundancyResult:
+        return self.categorical
+
+    @property
+    def mixed_analysis(self) -> PandasRedundancyResult:
+        return self.mixed
+
+    @property
+    def analyses(self) -> Mapping[str, PandasRedundancyResult]:
+        """Return the analyses using stable names for iteration/reporting."""
+
+        return {
+            "numeric": self.numeric,
+            "categorical": self.categorical,
+            "mixed": self.mixed,
+        }
+
+    @property
+    def reports(self) -> Mapping[str, PandasSelectionReport]:
+        """Return one selection report for each independent analysis."""
+
+        return {
+            name: analysis.report
+            for name, analysis in self.analyses.items()
+        }
+
+
 @dataclass(frozen=True, slots=True)
 class ArfsAssociationMethods:
     """ARFS callables used for each pair of feature types."""
@@ -169,7 +268,11 @@ class ArfsAssociationFactory:
 
 
 class PandasRedundancySelector(BasePandasFeatureAnalyzer):
-    """Remove redundant pandas columns with ARFS associations."""
+    """Run unsupervised redundancy selection in three feature-type views.
+
+    Outcomes are accepted only to exclude them from the feature universe. No
+    outcome is passed to ARFS and no relevance/predictive selection is done.
+    """
 
     def run(
         self,
@@ -180,14 +283,160 @@ class PandasRedundancySelector(BasePandasFeatureAnalyzer):
         categorical_method: str = "cramer_v",
         mixed_method: str = "correlation_ratio",
         n_jobs: int = 1,
-    ) -> PandasRedundancyResult:
-        data = self._validate_dataframe(df, columns)
-        analysis_data = self._prepare_arfs_data(data)
+        outcomes=None,
+        categorical_columns=None,
+    ) -> PandasRedundancyResults:
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("df must be a pandas DataFrame.")
+        if not df.columns.is_unique:
+            raise ValueError("df column names must be unique.")
+        if (
+            isinstance(threshold, bool)
+            or not isinstance(threshold, Real)
+            or not 0 <= threshold <= 1
+        ):
+            raise ValueError("threshold must be a real number between 0 and 1.")
+
+        candidate_columns = (
+            df.columns.tolist()
+            if columns is None
+            else self._normalize_columns(df, columns)
+        )
+        outcome_columns = self._resolve_outcomes(df, outcomes)
+        feature_columns = [
+            column
+            for column in candidate_columns
+            if column not in outcome_columns
+        ]
+        if not feature_columns:
+            raise ValueError(
+                "At least one feature must remain after excluding outcomes."
+            )
+
+        declared_categorical = (
+            []
+            if categorical_columns is None
+            else self._normalize_columns(df, categorical_columns)
+        )
+        declared_categorical = [
+            column
+            for column in declared_categorical
+            if column in feature_columns
+        ]
+
+        data = self._validate_dataframe(
+            df,
+            feature_columns,
+            min_columns=1,
+        )
+        # Validate supported dtypes once, before partitioning. This prevents a
+        # datetime or other unsupported feature from being silently omitted.
+        analysis_data = self._prepare_arfs_data(
+            data,
+            categorical_columns=declared_categorical,
+        )
+        numeric_columns, categorical_columns, mixed_columns = (
+            self._partition_columns(analysis_data)
+        )
         methods = ArfsAssociationFactory.create(
             numeric_method=numeric_method,
             categorical_method=categorical_method,
             mixed_method=mixed_method,
         )
+        analyses = {
+            "numeric": self._run_analysis(
+                data=data,
+                analysis_data=analysis_data,
+                columns=numeric_columns,
+                threshold=threshold,
+                methods=methods,
+                n_jobs=n_jobs,
+            ),
+            "categorical": self._run_analysis(
+                data=data,
+                analysis_data=analysis_data,
+                columns=categorical_columns,
+                threshold=threshold,
+                methods=methods,
+                n_jobs=n_jobs,
+            ),
+            "mixed": self._run_analysis(
+                data=data,
+                analysis_data=analysis_data,
+                columns=mixed_columns,
+                threshold=threshold,
+                methods=methods,
+                n_jobs=n_jobs,
+            ),
+        }
+
+        return PandasRedundancyResults(
+            numeric=analyses["numeric"],
+            categorical=analyses["categorical"],
+            mixed=analyses["mixed"],
+            feature_columns=tuple(feature_columns),
+            excluded_columns=tuple(outcome_columns),
+        )
+
+    @staticmethod
+    def _resolve_outcomes(df: pd.DataFrame, outcomes) -> list[str]:
+        if outcomes is None:
+            return []
+        resolved = PandasRedundancySelector._normalize_columns(df, outcomes)
+        if len(resolved) != len(set(resolved)):
+            raise ValueError("outcomes must not contain duplicates.")
+        return resolved
+
+    @staticmethod
+    def _normalize_columns(df: pd.DataFrame, columns) -> list[str]:
+        if isinstance(columns, str):
+            columns = [columns]
+        return utils.check_list_cols(df, columns)
+
+    @staticmethod
+    def _partition_columns(
+        data: pd.DataFrame,
+    ) -> tuple[list[str], list[str], list[str]]:
+        numeric = data.select_dtypes(include="number").columns.tolist()
+        categorical = data.select_dtypes(
+            include=["object", "category", "bool", "string"]
+        ).columns.tolist()
+        mixed = (
+            [
+                column
+                for column in data.columns
+                if column in set(numeric).union(categorical)
+            ]
+            if numeric and categorical
+            else []
+        )
+        return numeric, categorical, mixed
+
+    def _run_analysis(
+        self,
+        *,
+        data: pd.DataFrame,
+        analysis_data: pd.DataFrame,
+        columns: list[str],
+        threshold: float,
+        methods: ArfsAssociationMethods,
+        n_jobs: int,
+    ) -> PandasRedundancyResult:
+        """Run one ARFS selector, handling groups too small for ARFS itself."""
+
+        group = data.loc[:, columns]
+        analysis_group = analysis_data.loc[:, columns]
+        if not columns:
+            return self._manual_result(group, columns)
+
+        group = self._validate_dataframe(
+            data,
+            columns,
+            min_columns=1,
+        )
+        if len(columns) == 1:
+            return self._manual_result(group, columns)
+
         selector_pipeline = Pipeline(
             steps=[
                 (
@@ -203,20 +452,49 @@ class PandasRedundancySelector(BasePandasFeatureAnalyzer):
                 )
             ]
         )
-        selector_pipeline.fit(analysis_data)
+        selector_pipeline.fit(analysis_group)
         selector = selector_pipeline.named_steps["redundancy"]
-        selected_data = data.loc[:, selector.selected_features_]
+        selected_columns = tuple(selector.selected_features_)
 
         return PandasRedundancyResult(
-            data=selected_data,
+            data=group.loc[:, list(selected_columns)],
             association_matrix=selector.assoc_matrix_,
-            selected_columns=tuple(selector.selected_features_),
+            selected_columns=selected_columns,
             redundant_columns=tuple(selector.not_selected_features_),
             report=PandasSelectionReport.from_arfs(selector_pipeline),
         )
 
     @staticmethod
-    def _prepare_arfs_data(data: pd.DataFrame) -> pd.DataFrame:
+    def _manual_result(
+        data: pd.DataFrame,
+        columns: list[str],
+    ) -> PandasRedundancyResult:
+        """Represent zero/one-column groups without invoking ARFS."""
+
+        association_matrix = pd.DataFrame(
+            np.zeros((len(columns), len(columns))),
+            index=columns,
+            columns=columns,
+        )
+        summary = pd.DataFrame(
+            {"feature": columns, "selected": [True] * len(columns)}
+        )
+        return PandasRedundancyResult(
+            data=data.loc[:, columns],
+            association_matrix=association_matrix,
+            selected_columns=tuple(columns),
+            redundant_columns=(),
+            report=PandasSelectionReport(
+                summary=summary,
+                styled_summary=summary.style,
+            ),
+        )
+
+    @staticmethod
+    def _prepare_arfs_data(
+        data: pd.DataFrame,
+        categorical_columns: list[str] | None = None,
+    ) -> pd.DataFrame:
         supported_columns = data.select_dtypes(
             include=["number", "object", "category", "bool", "string"]
         ).columns
@@ -229,9 +507,14 @@ class PandasRedundancySelector(BasePandasFeatureAnalyzer):
 
         analysis_data = data.copy()
         string_columns = analysis_data.select_dtypes(include="string").columns
-        analysis_data[string_columns] = analysis_data[string_columns].astype(
-            "category"
-        )
+        to_category = list(string_columns)
+        if categorical_columns is not None:
+            to_category.extend(categorical_columns)
+        to_category = list(dict.fromkeys(to_category))
+        if to_category:
+            analysis_data[to_category] = analysis_data[to_category].astype(
+                "category"
+            )
         return analysis_data
 
 
@@ -241,6 +524,7 @@ __all__ = [
     "ArfsAssociationMethods",
     "PandasFeatureAnalyzer",
     "PandasRedundancyResult",
+    "PandasRedundancyResults",
     "PandasRedundancySelector",
     "PandasSelectionReport",
 ]
