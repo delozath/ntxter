@@ -7,7 +7,9 @@ import numpy as np
 
 from ntxter.core import utils
 
-from ntxter.core.mlops.partitioning import BaseQuantileStratifiedKFold
+from ntxter.adapters.mlops.partitioning.base_quantile_stratified_kfold import (
+    BaseQuantileStratifiedKFold,
+)
 
 
 @dataclass

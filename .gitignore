@@ -33,3 +33,4 @@ sys
 *.env
 !report.log
 *.egg*
+.vscode/settings.json

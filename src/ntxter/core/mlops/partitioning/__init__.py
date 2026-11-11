@@ -1,5 +1,11 @@
-from ntxter.core.mlops.partitioning.splits import BaseQuantileStratifiedKFold
+from ntxter.ports.mlops.partitioning import (
+    BaseFoldFactory,
+    FoldIndices,
+    SplitterProtocol,
+)
 
 __all__ = [
-    'BaseQuantileStratifiedKFold'
+    'BaseFoldFactory',
+    'FoldIndices',
+    'SplitterProtocol',
 ]

@@ -7,7 +7,9 @@ import pandas as pd
 from sklearn.metrics import recall_score
 
 
-from ntxter.core.mlops.partitioning import BaseQuantileStratifiedKFold
+from ntxter.adapters.mlops.partitioning.base_quantile_stratified_kfold import (
+    BaseQuantileStratifiedKFold,
+)
 
 N_SPLITS = 8
 N_ROWS = 400
